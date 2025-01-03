@@ -8,7 +8,7 @@ import warnings
 import glob
 import h5py
 import numpy as np
-
+from loguru import logger
 import torch
 import torch.utils.data as data
 import torch.nn.functional as F
@@ -38,12 +38,13 @@ class VideoDataset(data.Dataset):
         folder = osp.join(data_folder, 'train' if train else 'test')
         files = sum([glob.glob(osp.join(folder, '**', f'*.{ext}'), recursive=True)
                      for ext in self.exts], [])
-
+        logger.info(f"files: {files}")
         # hacky way to compute # of classes (count # of unique parent directories)
         self.classes = list(set([get_parent_dir(f) for f in files]))
         self.classes.sort()
         self.class_to_label = {c: i for i, c in enumerate(self.classes)}
-
+        logger.info(f"classes: {self.classes}")
+        logger.info(f"class_to_label: {self.class_to_label}")
         warnings.filterwarnings('ignore')
         cache_file = osp.join(folder, f"metadata_{sequence_length}.pkl")
         if not osp.exists(cache_file):

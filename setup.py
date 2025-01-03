@@ -1,3 +1,4 @@
+# setup.py
 from setuptools import setup
 
 def parse_requirements(filename):
@@ -11,5 +12,5 @@ setup(name='VideoGPT', version='1.0',
       author_email='wilson1.yan@berkeley.edu',
       license='BSD',
       packages=['videogpt'],
-      install_requires=parse_requirements('requirements.txt'),
+      install_requires=parse_requirements('requirements_no_versions.txt'),
       zip_safe=True)

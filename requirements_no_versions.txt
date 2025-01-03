@@ -1,0 +1,13 @@
+tqdm
+requests
+h5py
+torch
+torchvision
+torchtext
+pytorch_lightning
+scikit-video
+av
+gradio
+moviepy
+imageio
+gdown 
