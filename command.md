@@ -1,7 +1,7 @@
 ## 1. Finetune the VQ-VAE
 ```bash
-CUDA_VISIBLE_DEVICES=0
-python scripts/train_vqvae.py \
+CUDA_VISIBLE_DEVICES=3
+nohup python scripts/train_vqvae.py \
     --embedding_dim 256 \
     --n_codes 2048 \
     --n_hiddens 240 \
@@ -14,10 +14,10 @@ python scripts/train_vqvae.py \
     --num_workers 8 \
     --learning_rate 1e-4 \
     --max_epochs 100 \
-    --data_path data/dummy_data \
+    --data_path data/deposition_data_video_split \
     --resolution 128 \
     --sequence_length 16 \
-    --max_epochs 1
+    --max_epochs 100  > $(date +%m%d).log 2>&1 &
 ```
 
 ## 2. Finetune the VideoGPT

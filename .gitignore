@@ -7,3 +7,4 @@ datasets/
 i3d_pretrained_400.pt
 data
 pretrained_models
+.idea
