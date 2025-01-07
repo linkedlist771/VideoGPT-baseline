@@ -21,12 +21,17 @@ nohup python scripts/train_vqvae.py \
 ```
 
 ## 2. Finetune the VideoGPT
+记得把第一帧设置为条件帧:
+```bash
+--n_cond_frames 1 \ 
+```
+其中`    --class_cond ` 没必要使用。
+
 ```bash
 CUDA_VISIBLE_DEVICES=1
 nohup python scripts/train_videogpt.py \
     --vqvae "checkpoints/vqvae/vqvae_epoch28_for_vidogpt.ckpt" \
-    --n_cond_frames 0 \
-    --class_cond \
+    --n_cond_frames 1 \ 
     --hidden_dim 576 \
     --heads 4 \
     --layers 8 \
@@ -43,6 +48,6 @@ nohup python scripts/train_videogpt.py \
     --resolution 128 \
     --sequence_length 16 \
     --max_epochs 100 \
-    --max_steps 10000 \
+    --max_steps 1000000 \
     --learning_rate 1e-4 > $(date +%m%d)"videogpt_finetune".log 2>&1 &
 ```

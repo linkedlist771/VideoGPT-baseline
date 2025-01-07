@@ -27,4 +27,4 @@ batch = next(iter(loader))
 batch = {k: v.cuda() for k, v in batch.items()}
 
 samples = gpt.sample(n, batch)
-save_video_grid(samples, 'samples.mp4')
+save_video_grid(samples, 'samples.gif')
