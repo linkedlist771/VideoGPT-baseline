@@ -7,7 +7,6 @@ import torch
 from .vqvae import VQVAE
 from .gpt import VideoGPT
 
-
 def download(id, fname, root=os.path.expanduser('~/.cache/videogpt')):
     os.makedirs(root, exist_ok=True)
     destination = os.path.join(root, fname)

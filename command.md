@@ -51,3 +51,10 @@ nohup python scripts/train_videogpt.py \
     --max_steps 1000000 \
     --learning_rate 1e-4 > $(date +%m%d)"videogpt_finetune".log 2>&1 &
 ```
+
+## 3.infer for the test data
+```bash
+CUDAVISIBLE_DEVICES=1 python
+scripts/sample_videogpt.py --ckpt xxx
+--image
+```
