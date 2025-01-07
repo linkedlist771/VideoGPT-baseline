@@ -17,13 +17,14 @@ nohup python scripts/train_vqvae.py \
     --data_path data/deposition_data_video_split \
     --resolution 128 \
     --sequence_length 16 \
-    --max_epochs 100  > $(date +%m%d).log 2>&1 &
+    --max_epochs 100  > $(date +%m%d)"vqvae".log 2>&1 &
 ```
 
 ## 2. Finetune the VideoGPT
 ```bash
-python scripts/train_videogpt.py \
-    --vqvae "lightning_logs/version_0/checkpoints/model.ckpt" \
+CUDA_VISIBLE_DEVICES=1
+nohup python scripts/train_videogpt.py \
+    --vqvae "checkpoints/vqvae/vqvae_epoch28_for_vidogpt.ckpt" \
     --n_cond_frames 0 \
     --class_cond \
     --hidden_dim 576 \
@@ -38,10 +39,10 @@ python scripts/train_videogpt.py \
     --num_workers 2 \
     --amp_level O1 \
     --precision 16 \
-    --data_path data/dummy_data \
+    --data_path data/deposition_data_video_split \
     --resolution 128 \
     --sequence_length 16 \
-    --max_epochs 1 \
-    --max_steps 10 \
-    --learning_rate 1e-4
+    --max_epochs 100 \
+    --max_steps 10000 \
+    --learning_rate 1e-4 > $(date +%m%d)"videogpt_finetune".log 2>&1 &
 ```

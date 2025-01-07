@@ -2,6 +2,7 @@ import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from videogpt import VideoGPT, VideoData
+import os
 
 
 def main():
@@ -14,16 +15,16 @@ def main():
     parser.add_argument('--sequence_length', type=int, default=16)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_workers', type=int, default=8)
-    
+
     # Add training arguments that were previously in Trainer.add_argparse_args
     parser.add_argument('--accelerator', type=str, default='gpu')
-    parser.add_argument('--devices', type=int, default=1)
+    # parser.add_argument('--devices', type=int, default=1)
     parser.add_argument('--gpus', type=int, default=1)  # for backward compatibility
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--precision', type=int, default=32)
     parser.add_argument('--gradient_clip_val', type=float, default=1.0)
     parser.add_argument('--accumulate_grad_batches', type=int, default=1)
-    
+
     # Add VideoGPT model specific arguments
     parser.add_argument('--vqvae', type=str, default='kinetics_stride4x4x4')
     parser.add_argument('--n_cond_frames', type=int, default=0)
@@ -38,14 +39,14 @@ def main():
     parser.add_argument('--max_steps', type=int, default=1000)
     parser.add_argument('--weight_decay', type=float, default=0.0)
     parser.add_argument('--warmup_steps', type=int, default=0)
-    
+
     # Mixed precision training arguments
     parser.add_argument('--amp_level', type=str, default='O1')
-    
+
     # Add save directory argument
     parser.add_argument('--save_dir', type=str, default='checkpoints/videogpt',
-                      help='Directory to save VideoGPT checkpoints')
-    
+                        help='Directory to save VideoGPT checkpoints')
+
     args = parser.parse_args()
 
     data = VideoData(args)
@@ -66,14 +67,19 @@ def main():
     ))
 
     kwargs = dict()
-    if args.devices > 1 or args.gpus > 1:
-        kwargs = dict(strategy='ddp')
-
+    # if args.devices > 1 or args.gpus > 1:
+    #     kwargs = dict(strategy='ddp')
+    # cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    # if cuda_visible_devices:
+    #     devices = [int(x) for x in cuda_visible_devices.split(",")]
+    # else:
+    #     devices = None
     trainer = pl.Trainer(
         accelerator=args.accelerator,
-        devices=args.devices,
+        # devices=args.devices,
         max_epochs=args.max_epochs,
         precision=args.precision,
+        # devices=devices,
         gradient_clip_val=args.gradient_clip_val,
         accumulate_grad_batches=args.accumulate_grad_batches,
         callbacks=callbacks,
@@ -86,4 +92,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
