@@ -25,6 +25,9 @@ data = VideoData(args)
 loader = data.test_dataloader()
 batch = next(iter(loader))
 batch = {k: v.cuda() for k, v in batch.items()}
+real_videos = batch['video']
+real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
 
+save_video_grid(real_videos, 'real_videos.gif')
 samples = gpt.sample(n, batch)
 save_video_grid(samples, 'samples.gif')
