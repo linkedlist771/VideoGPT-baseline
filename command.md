@@ -1,6 +1,6 @@
 ## 1. Finetune the VQ-VAE
 ```bash
-CUDA_VISIBLE_DEVICES=3
+CUDA_VISIBLE_DEVICES=0
 nohup python scripts/train_vqvae.py \
     --embedding_dim 256 \
     --n_codes 2048 \
@@ -28,11 +28,10 @@ nohup python scripts/train_vqvae.py \
 其中`    --class_cond ` 没必要使用。
 
 ```bash
-CUDA_VISIBLE_DEVICES=1
+CUDA_VISIBLE_DEVICES=1 
 nohup python scripts/train_videogpt.py \
-    --vqvae "checkpoints/vqvae/vqvae_epoch28_for_vidogpt.ckpt" \
-    --n_cond_frames 1 \ 
     --hidden_dim 576 \
+    --n_cond_frames 1 \ 
     --heads 4 \
     --layers 8 \
     --dropout 0.2 \
@@ -44,11 +43,12 @@ nohup python scripts/train_videogpt.py \
     --num_workers 2 \
     --amp_level O1 \
     --precision 16 \
-    --data_path data/deposition_data_video_split \
     --resolution 128 \
     --sequence_length 16 \
     --max_epochs 100 \
     --max_steps 1000000 \
+    --data_path data/deposition_data_video_split \
+    --vqvae "checkpoints/vqvae/vqvae_final.ckpt" \
     --learning_rate 1e-4 > $(date +%m%d)"videogpt_finetune".log 2>&1 &
 ```
 
