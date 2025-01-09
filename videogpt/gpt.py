@@ -72,7 +72,8 @@ class VideoGPT(pl.LightningModule):
 
     def sample(self, n, batch=None):
         device = self.fc_in.weight.device
-
+        from loguru import logger
+        logger.debug(f"sample device:{device}")
         cond = dict()
         if self.use_frame_cond or self.args.class_cond:
             assert batch is not None
@@ -82,6 +83,7 @@ class VideoGPT(pl.LightningModule):
                 label = batch['label']
                 cond['class_cond'] = F.one_hot(label, self.args.class_cond_dim).type_as(video)
             if self.use_frame_cond:
+                logger.debug(f"use the frame_cond")
                 cond['frame_cond'] = video[:, :, :self.args.n_cond_frames]
 
         samples = torch.zeros((n,) + self.shape).long().to(device)

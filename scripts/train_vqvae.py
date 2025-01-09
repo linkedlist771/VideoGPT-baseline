@@ -55,7 +55,7 @@ def main():
     trainer_kwargs = {
         'max_epochs': args.max_epochs,
         'accelerator': 'gpu' if args.gpus > 0 else 'cpu',
-        # 'devices': args.gpus if args.gpus > 0 else None,
+        "devices": 1,
         'callbacks': callbacks,
         'gradient_clip_val': args.gradient_clip_val,
     }

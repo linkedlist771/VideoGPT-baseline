@@ -1,6 +1,6 @@
 ## 1. Finetune the VQ-VAE
 ```bash
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 nohup python scripts/train_vqvae.py \
     --embedding_dim 256 \
     --n_codes 2048 \
@@ -28,10 +28,10 @@ nohup python scripts/train_vqvae.py \
 其中`    --class_cond ` 没必要使用。
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 
+export CUDA_VISIBLE_DEVICES=1
 nohup python scripts/train_videogpt.py \
     --hidden_dim 576 \
-    --n_cond_frames 1 \ 
+    --n_cond_frames 1 \
     --heads 4 \
     --layers 8 \
     --dropout 0.2 \
@@ -54,7 +54,5 @@ nohup python scripts/train_videogpt.py \
 
 ## 3.infer for the test data
 ```bash
-CUDAVISIBLE_DEVICES=1 python
-scripts/sample_videogpt.py --ckpt xxx
---image
+CUDAVISIBLE_DEVICES=0 python scripts/sample_videogpt.py --ckpt xxx --image
 ```

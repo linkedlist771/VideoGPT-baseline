@@ -69,17 +69,18 @@ def main():
     kwargs = dict()
     # if args.devices > 1 or args.gpus > 1:
     #     kwargs = dict(strategy='ddp')
-    # cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    # print(cuda_visible_devices)
     # if cuda_visible_devices:
     #     devices = [int(x) for x in cuda_visible_devices.split(",")]
     # else:
-    #     devices = None
+    #     devices = 0
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         # devices=args.devices,
         max_epochs=args.max_epochs,
         precision=args.precision,
-        # devices=devices,
+        devices=1,
         gradient_clip_val=args.gradient_clip_val,
         accumulate_grad_batches=args.accumulate_grad_batches,
         callbacks=callbacks,
