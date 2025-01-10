@@ -54,5 +54,5 @@ nohup python scripts/train_videogpt.py \
 
 ## 3.infer for the test data
 ```bash
-CUDAVISIBLE_DEVICES=0 python scripts/sample_videogpt.py --ckpt xxx --image
+export CUDAVISIBLE_DEVICES=0 && nohup python scripts/sample_videogpt.py --ckpt 'checkpoints/videogpt/videogpt_epoch=99.ckpt' --image > $(date +%m%d)"infer".log 2>&1 &
 ```

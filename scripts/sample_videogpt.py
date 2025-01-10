@@ -37,7 +37,7 @@ if use_image:
 args.batch_size = n
 data = VideoData(args)
 loader = data.test_dataloader()
-for idx, batch in tqdm(enumerate(loader)):
+for idx, batch in enumerate(tqdm(loader)):
     batch = {k: v.cuda() for k, v in batch.items()}
     real_videos = batch['video']
     real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
@@ -53,8 +53,6 @@ for idx, batch in tqdm(enumerate(loader)):
             for t in range(real_videos.size(2)):  # 遍历时间维度
 
                 frame = real_videos[i, :, t, :, :]
-                print(frame.shape)
-
                 frame_pil = Image.fromarray(
                     (frame.permute(1, 2, 0).cpu().numpy() * 255).astype('uint8')
                 )
@@ -69,9 +67,6 @@ for idx, batch in tqdm(enumerate(loader)):
                     (frame.permute(1, 2, 0).cpu().numpy() * 255).astype('uint8')
                 )
                 frame_pil.save(generated_batch_dir / f"video_{i}_frame_{t:03d}.png")
-
     else:
-
         save_video_grid(real_videos, 'real_videos.gif')
         save_video_grid(samples, 'samples.gif')
-    break
