@@ -10,13 +10,13 @@ nohup python scripts/train_vqvae.py \
     --gpus 1 \
     --sync_batchnorm \
     --gradient_clip_val 1 \
-    --batch_size 16 \
+    --batch_size 8 \
     --num_workers 8 \
     --learning_rate 1e-4 \
     --max_epochs 100 \
     --data_path data/deposition_data_video_split \
-    --resolution 128 \
-    --sequence_length 16 \
+    --resolution 384 \
+    --sequence_length 8 \
     --max_epochs 100  > $(date +%m%d)"vqvae".log 2>&1 &
 ```
 
@@ -43,8 +43,8 @@ nohup python scripts/train_videogpt.py \
     --num_workers 2 \
     --amp_level O1 \
     --precision 16 \
-    --resolution 128 \
-    --sequence_length 16 \
+    --resolution 384 \
+    --sequence_length 8 \
     --max_epochs 100 \
     --max_steps 1000000 \
     --data_path data/deposition_data_video_split \
