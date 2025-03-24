@@ -15,7 +15,7 @@ nohup python scripts/train_vqvae.py \
     --learning_rate 1e-4 \
     --max_epochs 100 \
     --data_path data/deposition_data_video_split \
-    --resolution 384 \
+    --resolution 128 \
     --sequence_length 8 \
     --max_epochs 100  > $(date +%m%d)"vqvae".log 2>&1 &
 ```
@@ -28,7 +28,7 @@ nohup python scripts/train_vqvae.py \
 其中`    --class_cond ` 没必要使用。
 
 ```bash
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 nohup python scripts/train_videogpt.py \
     --hidden_dim 576 \
     --n_cond_frames 1 \
@@ -39,11 +39,11 @@ nohup python scripts/train_videogpt.py \
     --attn_dropout 0.3 \
     --gpus 1 \
     --gradient_clip_val 1 \
-    --batch_size 8 \
+    --batch_size 2 \
     --num_workers 2 \
     --amp_level O1 \
     --precision 16 \
-    --resolution 384 \
+    --resolution 128 \
     --sequence_length 8 \
     --max_epochs 100 \
     --max_steps 1000000 \
@@ -54,5 +54,5 @@ nohup python scripts/train_videogpt.py \
 
 ## 3.infer for the test data
 ```bash
-export CUDAVISIBLE_DEVICES=0 && nohup python scripts/sample_videogpt.py --ckpt 'checkpoints/videogpt/videogpt_epoch=99.ckpt' --image > $(date +%m%d)"infer".log 2>&1 &
+export CUDAVISIBLE_DEVICES=1 && nohup python scripts/sample_videogpt.py --ckpt 'checkpoints/videogpt/videogpt_epoch=19.ckpt' --image --n_cond_frames 1 > $(date +%m%d)"infer".log 2>&1 &
 ```

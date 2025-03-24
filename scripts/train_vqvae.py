@@ -2,11 +2,16 @@ import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from videogpt import VQVAE, VideoData
+import datetime
 
 
 def main():
     pl.seed_everything(1234)
 
+    # Get current date for checkpoint directory
+    current_date = datetime.datetime.now()
+    month_day = f"{current_date.month:02d}_{current_date.day:02d}"
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='/home/wilson/data/datasets/bair.hdf5')
     parser.add_argument('--sequence_length', type=int, default=16)
@@ -31,7 +36,7 @@ def main():
                       help='Downsampling factors')
     parser.add_argument('--sync_batchnorm', action='store_true',
                       help='Use synchronized batch normalization')
-    parser.add_argument('--save_dir', type=str, default='checkpoints/vqvae',
+    parser.add_argument('--save_dir', type=str, default=f'checkpoints/vqvae/{month_day}',
                       help='Directory to save VQVAE checkpoints')
     
     args = parser.parse_args()

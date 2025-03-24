@@ -3,10 +3,14 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from videogpt import VideoGPT, VideoData
 import os
+import datetime
 
 
 def main():
     pl.seed_everything(1234)
+    current_date = datetime.datetime.now()
+
+    month_day = f"{current_date.month:02d}_{current_date.day:02d}"
 
     parser = argparse.ArgumentParser()
     # Add basic arguments
@@ -44,7 +48,7 @@ def main():
     parser.add_argument('--amp_level', type=str, default='O1')
 
     # Add save directory argument
-    parser.add_argument('--save_dir', type=str, default='checkpoints/videogpt',
+    parser.add_argument('--save_dir', type=str, default=f'checkpoints/videogpt/{month_day}',
                         help='Directory to save VideoGPT checkpoints')
 
     args = parser.parse_args()

@@ -40,9 +40,9 @@ _VIDEOGPT = {
 }
 
 def load_videogpt(model_name, device=torch.device('cpu')):
-    assert model_name in _VIDEOGPT, f"Invalid model_name: {model_name}"
-    filepath = download(_VIDEOGPT[model_name], model_name)
-    gpt = VideoGPT.load_from_checkpoint(filepath).to(device)
+    # assert model_name in _VIDEOGPT, f"Invalid model_name: {model_name}"
+    # filepath = download(_VIDEOGPT[model_name], model_name)
+    gpt = VideoGPT.load_from_checkpoint(model_name).to(device)
     gpt.eval()
 
     return gpt
