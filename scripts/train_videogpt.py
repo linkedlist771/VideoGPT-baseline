@@ -62,18 +62,19 @@ def main():
     model = VideoGPT(args)
 
     callbacks = []
+    # 只保存最后三个
     callbacks.append(ModelCheckpoint(
         dirpath=args.save_dir,
         filename='videogpt_{epoch:02d}',
         monitor='val/loss',
         mode='min',
-        save_top_k=-1
+        save_last=True,
+        save_top_k=2
     ))
 
     kwargs = dict()
     # if args.devices > 1 or args.gpus > 1:
     #     kwargs = dict(strategy='ddp')
-    cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
     # print(cuda_visible_devices)
     # if cuda_visible_devices:
     #     devices = [int(x) for x in cuda_visible_devices.split(",")]

@@ -54,8 +54,11 @@ def main():
         monitor='val/recon_loss',
         mode='min',
         save_last=True,
-        save_top_k=3
+        save_top_k=2
     ))
+
+
+    
 
     trainer_kwargs = {
         'max_epochs': args.max_epochs,
