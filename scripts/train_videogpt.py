@@ -50,6 +50,10 @@ def main():
     # Add save directory argument
     parser.add_argument('--save_dir', type=str, default=f'checkpoints/videogpt/{month_day}',
                         help='Directory to save VideoGPT checkpoints')
+    
+    # Add checkpoint loading argument
+    parser.add_argument('--resume_from_checkpoint', type=str, default=None,
+                        help='Path to checkpoint to resume training from')
 
     args = parser.parse_args()
 
@@ -93,7 +97,7 @@ def main():
         **kwargs
     )
 
-    trainer.fit(model, data)
+    trainer.fit(model, data, ckpt_path=args.resume_from_checkpoint)
 
 
 if __name__ == '__main__':
