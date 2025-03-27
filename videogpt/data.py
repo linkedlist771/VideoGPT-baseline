@@ -1,26 +1,27 @@
+import glob
+import math
 import os
 import os.path as osp
-import math
-import random
 import pickle
+import random
 import warnings
 
-import glob
 import h5py
 import numpy as np
-from loguru import logger
-import torch
-import torch.utils.data as data
-import torch.nn.functional as F
-import torch.distributed as dist
-from torchvision.datasets.video_utils import VideoClips
 import pytorch_lightning as pl
+import torch
+import torch.distributed as dist
+import torch.nn.functional as F
+import torch.utils.data as data
+from loguru import logger
+from torchvision.datasets.video_utils import VideoClips
 
 
 class VideoDataset(data.Dataset):
-    """ Generic dataset for videos files stored in folders
-    Returns BCTHW videos in the range [-0.5, 0.5] """
-    exts = ['avi', 'mp4', 'webm']
+    """Generic dataset for videos files stored in folders
+    Returns BCTHW videos in the range [-0.5, 0.5]"""
+
+    exts = ["avi", "mp4", "webm"]
 
     def __init__(self, data_folder, sequence_length, train=True, resolution=64):
         """
@@ -35,9 +36,14 @@ class VideoDataset(data.Dataset):
         self.sequence_length = sequence_length
         self.resolution = resolution
 
-        folder = osp.join(data_folder, 'train' if train else 'test')
-        files = sum([glob.glob(osp.join(folder, '**', f'*.{ext}'), recursive=True)
-                     for ext in self.exts], [])
+        folder = osp.join(data_folder, "train" if train else "test")
+        files = sum(
+            [
+                glob.glob(osp.join(folder, "**", f"*.{ext}"), recursive=True)
+                for ext in self.exts
+            ],
+            [],
+        )
         logger.info(f"files: {files}")
         # hacky way to compute # of classes (count # of unique parent directories)
         self.classes = list(set([get_parent_dir(f) for f in files]))
@@ -45,15 +51,14 @@ class VideoDataset(data.Dataset):
         self.class_to_label = {c: i for i, c in enumerate(self.classes)}
         logger.info(f"classes: {self.classes}")
         logger.info(f"class_to_label: {self.class_to_label}")
-        warnings.filterwarnings('ignore')
+        warnings.filterwarnings("ignore")
         cache_file = osp.join(folder, f"metadata_{sequence_length}.pkl")
         if not osp.exists(cache_file):
             clips = VideoClips(files, sequence_length, num_workers=32)
-            pickle.dump(clips.metadata, open(cache_file, 'wb'))
+            pickle.dump(clips.metadata, open(cache_file, "wb"))
         else:
-            metadata = pickle.load(open(cache_file, 'rb'))
-            clips = VideoClips(files, sequence_length,
-                               _precomputed_metadata=metadata)
+            metadata = pickle.load(open(cache_file, "rb"))
+            clips = VideoClips(files, sequence_length, _precomputed_metadata=metadata)
         self._clips = clips
 
     @property
@@ -78,7 +83,7 @@ def get_parent_dir(path):
 
 def preprocess(video, resolution, sequence_length=None):
     # video: THWC, {0, ..., 255}
-    video = video.permute(0, 3, 1, 2).float() / 255. # TCHW
+    video = video.permute(0, 3, 1, 2).float() / 255.0  # TCHW
     t, c, h, w = video.shape
 
     # temporal crop
@@ -92,15 +97,14 @@ def preprocess(video, resolution, sequence_length=None):
         target_size = (resolution, math.ceil(w * scale))
     else:
         target_size = (math.ceil(h * scale), resolution)
-    video = F.interpolate(video, size=target_size, mode='bilinear',
-                          align_corners=False)
+    video = F.interpolate(video, size=target_size, mode="bilinear", align_corners=False)
 
     # center crop
     t, c, h, w = video.shape
     w_start = (w - resolution) // 2
     h_start = (h - resolution) // 2
-    video = video[:, :, h_start:h_start + resolution, w_start:w_start + resolution]
-    video = video.permute(1, 0, 2, 3).contiguous() # CTHW
+    video = video[:, :, h_start : h_start + resolution, w_start : w_start + resolution]
+    video = video.permute(1, 0, 2, 3).contiguous()  # CTHW
 
     video -= 0.5
 
@@ -108,8 +112,9 @@ def preprocess(video, resolution, sequence_length=None):
 
 
 class HDF5Dataset(data.Dataset):
-    """ Generic dataset for data stored in h5py as uint8 numpy arrays.
-    Reads videos in {0, ..., 255} and returns in range [-0.5, 0.5] """
+    """Generic dataset for data stored in h5py as uint8 numpy arrays.
+    Reads videos in {0, ..., 255} and returns in range [-0.5, 0.5]"""
+
     def __init__(self, data_file, sequence_length, train=True, resolution=64):
         """
         Args:
@@ -130,28 +135,28 @@ class HDF5Dataset(data.Dataset):
 
         # read in data
         self.data_file = data_file
-        self.data = h5py.File(data_file, 'r')
-        self.prefix = 'train' if train else 'test'
-        self._images = self.data[f'{self.prefix}_data']
-        self._idx = self.data[f'{self.prefix}_idx']
+        self.data = h5py.File(data_file, "r")
+        self.prefix = "train" if train else "test"
+        self._images = self.data[f"{self.prefix}_data"]
+        self._idx = self.data[f"{self.prefix}_idx"]
         self.size = len(self._idx)
 
     @property
     def n_classes(self):
-        raise Exception('class conditioning not support for HDF5Dataset')
+        raise Exception("class conditioning not support for HDF5Dataset")
 
     def __getstate__(self):
         state = self.__dict__
-        state['data'] = None
-        state['_images'] = None
-        state['_idx'] = None
+        state["data"] = None
+        state["_images"] = None
+        state["_idx"] = None
         return state
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self.data = h5py.File(self.data_file, 'r')
-        self._images = self.data[f'{self.prefix}_data']
-        self._idx = self.data[f'{self.prefix}_idx']
+        self.data = h5py.File(self.data_file, "r")
+        self._images = self.data[f"{self.prefix}_data"]
+        self._idx = self.data[f"{self.prefix}_idx"]
 
     def __len__(self):
         return self.size
@@ -161,14 +166,15 @@ class HDF5Dataset(data.Dataset):
         end = self._idx[idx + 1] if idx < len(self._idx) - 1 else len(self._images)
         assert end - start >= 0
 
-        start = start + np.random.randint(low=0, high=end - start - self.sequence_length)
+        start = start + np.random.randint(
+            low=0, high=end - start - self.sequence_length
+        )
         assert start < start + self.sequence_length <= end
-        video = torch.tensor(self._images[start:start + self.sequence_length])
+        video = torch.tensor(self._images[start : start + self.sequence_length])
         return dict(video=preprocess(video, self.resolution))
 
 
 class VideoData(pl.LightningDataModule):
-
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -178,13 +184,15 @@ class VideoData(pl.LightningDataModule):
         dataset = self._dataset(True)
         return dataset.n_classes
 
-
     def _dataset(self, train):
         Dataset = VideoDataset if osp.isdir(self.args.data_path) else HDF5Dataset
-        dataset = Dataset(self.args.data_path, self.args.sequence_length,
-                          train=train, resolution=self.args.resolution)
+        dataset = Dataset(
+            self.args.data_path,
+            self.args.sequence_length,
+            train=train,
+            resolution=self.args.resolution,
+        )
         return dataset
-
 
     def _dataloader(self, train):
         dataset = self._dataset(train)
@@ -200,7 +208,7 @@ class VideoData(pl.LightningDataModule):
             num_workers=self.args.num_workers,
             pin_memory=True,
             sampler=sampler,
-            shuffle=sampler is None
+            shuffle=sampler is None,
         )
         return dataloader
 

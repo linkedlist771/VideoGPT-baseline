@@ -1,19 +1,20 @@
 import argparse
-from pathlib import Path
-import shutil
 import random
+import shutil
+from pathlib import Path
+
 from tqdm import tqdm
 
 
 def copy_mp4_files(src_dir, dst_dir):
-    for file in src_dir.glob('*.mp4'):
+    for file in src_dir.glob("*.mp4"):
         shutil.copy2(file, dst_dir)
 
 
 def split_data(source_dir: Path, target_dir: Path, train_test_ratio: float = 0.8):
     # Create train and test directories in the target directory
-    train_dir = target_dir / 'train'
-    test_dir = target_dir / 'test'
+    train_dir = target_dir / "train"
+    test_dir = target_dir / "test"
     train_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,9 +46,18 @@ def split_data(source_dir: Path, target_dir: Path, train_test_ratio: float = 0.8
 
 def main():
     parser = argparse.ArgumentParser(description="Split data into train and test sets.")
-    parser.add_argument("--source", type=Path, required=True, help="Source directory containing the data")
-    parser.add_argument("--target", type=Path, required=True, help="Target directory for the split data")
-    parser.add_argument("--ratio", type=float, default=0.8, help="Train-test split ratio (default: 0.8)")
+    parser.add_argument(
+        "--source",
+        type=Path,
+        required=True,
+        help="Source directory containing the data",
+    )
+    parser.add_argument(
+        "--target", type=Path, required=True, help="Target directory for the split data"
+    )
+    parser.add_argument(
+        "--ratio", type=float, default=0.8, help="Train-test split ratio (default: 0.8)"
+    )
     args = parser.parse_args()
 
     split_data(args.source, args.target, args.ratio)
