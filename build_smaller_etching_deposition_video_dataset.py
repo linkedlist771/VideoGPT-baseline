@@ -14,21 +14,44 @@ def build_smaller_video_dataset(source_dir: Path, target_dir: Path, ratio: float
     target_test_dir = target_dir / "test"
     target_train_dir.mkdir(exist_ok=True, parents=True)
     target_test_dir.mkdir(exist_ok=True, parents=True)    
+    
+    # Get files for each type
     train_mp4_files = list(source_train_dir.glob("*.mp4"))
     test_mp4_files = list(source_test_dir.glob("*.mp4"))
+
+    sub_prefixes_mp4_files_train = [
+            file for file in train_mp4_files if file.stem.startswith("sub")]
+    sub_prefixes_mp4_files_test = [
+            file for file in test_mp4_files if file.stem.startswith("sub")]
     
-    # Randomly select files based on ratio
-    num_train_files = int(len(train_mp4_files) * ratio)
-    num_test_files = int(len(test_mp4_files) * ratio)
+    process_prefixes_mp4_files_train = [
+            file for file in train_mp4_files if file.stem.startswith("process")]
+    process_prefixes_mp4_files_test = [
+            file for file in test_mp4_files if file.stem.startswith("process")]
     
-    selected_train_files = random.sample(train_mp4_files, num_train_files)
-    selected_test_files = random.sample(test_mp4_files, num_test_files)
+    # Calculate number of files to select for each type
+    num_train_sub = int(len(sub_prefixes_mp4_files_train) * ratio)
+    num_train_process = int(len(process_prefixes_mp4_files_train) * ratio)
+    num_test_sub = int(len(sub_prefixes_mp4_files_test) * ratio)
+    num_test_process = int(len(process_prefixes_mp4_files_test) * ratio)
+    
+    # Randomly select files for each type
+    selected_train_sub = random.sample(sub_prefixes_mp4_files_train, num_train_sub)
+    selected_train_process = random.sample(process_prefixes_mp4_files_train, num_train_process)
+    selected_test_sub = random.sample(sub_prefixes_mp4_files_test, num_test_sub)
+    selected_test_process = random.sample(process_prefixes_mp4_files_test, num_test_process)
     
     # Copy selected files to target directories
-    for file in tqdm(selected_train_files, desc="Copying train files"):
+    for file in tqdm(selected_train_sub, desc="Copying train sub files"):
         shutil.copy2(file, target_train_dir / file.name)
     
-    for file in tqdm(selected_test_files, desc="Copying test files"):
+    for file in tqdm(selected_train_process, desc="Copying train process files"):
+        shutil.copy2(file, target_train_dir / file.name)
+    
+    for file in tqdm(selected_test_sub, desc="Copying test sub files"):
+        shutil.copy2(file, target_test_dir / file.name)
+    
+    for file in tqdm(selected_test_process, desc="Copying test process files"):
         shutil.copy2(file, target_test_dir / file.name)
 
 if __name__ == "__main__":
