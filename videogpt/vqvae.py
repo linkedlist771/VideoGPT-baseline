@@ -222,6 +222,9 @@ class Codebook(nn.Module):
         embeddings = F.embedding(encodings, self.embeddings)
         return embeddings
 
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
 
 class Encoder(nn.Module):
     def __init__(self, n_hiddens, n_res_layers, downsample):
@@ -229,6 +232,7 @@ class Encoder(nn.Module):
         n_times_downsample = np.array([int(math.log2(d)) for d in downsample])
         self.convs = nn.ModuleList()
         max_ds = n_times_downsample.max()
+        in_channels = None
         for i in range(max_ds):
             in_channels = 3 if i == 0 else n_hiddens
             stride = tuple([2 if d > 0 else 1 for d in n_times_downsample])
@@ -250,6 +254,9 @@ class Encoder(nn.Module):
         h = self.conv_last(h)
         h = self.res_stack(h)
         return h
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
 
 
 class Decoder(nn.Module):
@@ -279,6 +286,9 @@ class Decoder(nn.Module):
                 h = F.relu(h)
         return h
 
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
 
 # Does not support dilation
 class SamePadConv3d(nn.Module):
@@ -303,6 +313,9 @@ class SamePadConv3d(nn.Module):
 
     def forward(self, x):
         return self.conv(F.pad(x, self.pad_input))
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
 
 
 class SamePadConvTranspose3d(nn.Module):
@@ -331,3 +344,6 @@ class SamePadConvTranspose3d(nn.Module):
 
     def forward(self, x):
         return self.convt(F.pad(x, self.pad_input))
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)

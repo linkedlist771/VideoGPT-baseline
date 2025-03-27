@@ -241,6 +241,9 @@ class MultiHeadAttention(nn.Module):
 
         return a
 
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
 
 ############## Attention #######################
 class FullAttention(nn.Module):
