@@ -18,13 +18,10 @@ class VQVAE(pl.LightningModule):
         self.args = args
         self.embedding_dim = args.embedding_dim
         self.n_codes = args.n_codes
-
         self.encoder = Encoder(args.n_hiddens, args.n_res_layers, args.downsample)
         self.decoder = Decoder(args.n_hiddens, args.n_res_layers, args.downsample)
-
         self.pre_vq_conv = SamePadConv3d(args.n_hiddens, args.embedding_dim, 1)
         self.post_vq_conv = SamePadConv3d(args.embedding_dim, args.n_hiddens, 1)
-
         self.codebook = Codebook(args.n_codes, args.embedding_dim)
         self.save_hyperparameters()
 
@@ -54,8 +51,8 @@ class VQVAE(pl.LightningModule):
         z = self.pre_vq_conv(self.encoder(x))
         vq_output = self.codebook(z)
         x_recon = self.decoder(self.post_vq_conv(vq_output["embeddings"]))
+        # reconstruction_loss = | | x - x_recon | |² / (2σ²), 重建损失。
         recon_loss = F.mse_loss(x_recon, x) / 0.06
-
         return recon_loss, x_recon, vq_output
 
     def training_step(self, batch, batch_idx):
@@ -134,7 +131,6 @@ class Codebook(nn.Module):
         self.register_buffer("embeddings", torch.randn(n_codes, embedding_dim))
         self.register_buffer("N", torch.zeros(n_codes))
         self.register_buffer("z_avg", self.embeddings.data.clone())
-
         self.n_codes = n_codes
         self.embedding_dim = embedding_dim
         self._need_init = True
@@ -153,7 +149,6 @@ class Codebook(nn.Module):
         self._need_init = False
         flat_inputs = shift_dim(z, 1, -1).flatten(end_dim=-2)
         y = self._tile(flat_inputs)
-
         d = y.shape[0]
         _k_rand = y[torch.randperm(y.shape[0])][: self.n_codes]
         if dist.is_initialized():
@@ -172,7 +167,7 @@ class Codebook(nn.Module):
             - 2 * flat_inputs @ self.embeddings.t()
             + (self.embeddings.t() ** 2).sum(dim=0, keepdim=True)
         )
-
+        # 可以计算每个batch中不同的tensor被选择的次数。
         encoding_indices = torch.argmin(distances, dim=1)
         encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
         encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
@@ -180,6 +175,7 @@ class Codebook(nn.Module):
         embeddings = F.embedding(encoding_indices, self.embeddings)
         embeddings = shift_dim(embeddings, -1, 1)
 
+        # 重建损失
         commitment_loss = 0.25 * F.mse_loss(z, embeddings.detach())
 
         # EMA codebook update
@@ -203,6 +199,7 @@ class Codebook(nn.Module):
             if dist.is_initialized():
                 dist.broadcast(_k_rand, 0)
 
+            # 对于那些使用次数小于1的， 长时间没有被使用的， 标记为死码，进行替代。
             usage = (self.N.view(self.n_codes, 1) >= 1).float()
             self.embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
 
