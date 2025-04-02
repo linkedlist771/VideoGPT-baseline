@@ -58,6 +58,11 @@ def main():
         default=f"checkpoints/vqvae/{month_day}",
         help="Directory to save VQVAE checkpoints",
     )
+    # 新增的参数
+    parser.add_argument("--beta", type=float, default=0.98)
+    parser.add_argument("--affine_lr", type=float, default=0.0)
+    parser.add_argument("--affine_groups", type=int, default=1)
+    parser.add_argument("--use_running_statistics", action="store_true")
 
     args = parser.parse_args()
 
