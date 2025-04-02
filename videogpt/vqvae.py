@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from .attention import MultiHeadAttention
 from .utils import shift_dim
+from .affine import AffineTransform
 
 
 class VQVAE(pl.LightningModule):
@@ -22,7 +23,14 @@ class VQVAE(pl.LightningModule):
         self.decoder = Decoder(args.n_hiddens, args.n_res_layers, args.downsample)
         self.pre_vq_conv = SamePadConv3d(args.n_hiddens, args.embedding_dim, 1)
         self.post_vq_conv = SamePadConv3d(args.embedding_dim, args.n_hiddens, 1)
-        self.codebook = Codebook(args.n_codes, args.embedding_dim)
+        self.codebook = Codebook(
+            args.n_codes, 
+            args.embedding_dim,
+            beta=getattr(args, 'beta', 0.25),
+            affine_lr=getattr(args, 'affine_lr', 0.0),
+            affine_groups=getattr(args, 'affine_groups', 1),
+            use_running_statistics=getattr(args, 'use_running_statistics', False)
+        )
         self.save_hyperparameters()
 
     @property
@@ -80,6 +88,10 @@ class VQVAE(pl.LightningModule):
         parser.add_argument("--n_hiddens", type=int, default=240)
         parser.add_argument("--n_res_layers", type=int, default=4)
         parser.add_argument("--downsample", nargs="+", type=int, default=(4, 4, 4))
+        parser.add_argument("--beta", type=float, default=0.25)
+        parser.add_argument("--affine_lr", type=float, default=0.0)
+        parser.add_argument("--affine_groups", type=int, default=1)
+        parser.add_argument("--use_running_statistics", action="store_true")
         return parser
 
 
@@ -126,14 +138,24 @@ class AttentionResidualBlock(nn.Module):
 
 
 class Codebook(nn.Module):
-    def __init__(self, n_codes, embedding_dim):
+    def __init__(self, n_codes, embedding_dim, beta=0.25, affine_lr=0.0, affine_groups=1, use_running_statistics=False):
         super().__init__()
-        self.register_buffer("embeddings", torch.randn(n_codes, embedding_dim))
+        self.register_buffer("_embeddings", torch.randn(n_codes, embedding_dim))
         self.register_buffer("N", torch.zeros(n_codes))
-        self.register_buffer("z_avg", self.embeddings.data.clone())
+        self.register_buffer("z_avg", self._embeddings.data.clone())
         self.n_codes = n_codes
         self.embedding_dim = embedding_dim
         self._need_init = True
+        self.beta = beta
+        
+        # Add affine transformation support
+        if affine_lr > 0:
+            self.affine_transform = AffineTransform(
+                embedding_dim,
+                use_running_statistics=use_running_statistics,
+                lr_scale=affine_lr,
+                num_groups=affine_groups,
+            )
 
     def _tile(self, x):
         d, ew = x.shape
@@ -153,30 +175,49 @@ class Codebook(nn.Module):
         _k_rand = y[torch.randperm(y.shape[0])][: self.n_codes]
         if dist.is_initialized():
             dist.broadcast(_k_rand, 0)
-        self.embeddings.data.copy_(_k_rand)
+        self._embeddings.data.copy_(_k_rand)
         self.z_avg.data.copy_(_k_rand)
         self.N.data.copy_(torch.ones(self.n_codes))
+
+    @property
+    def embeddings(self):
+        """Property that returns the potentially transformed codebook entries"""
+        codebook = self._embeddings
+        if hasattr(self, 'affine_transform'):
+            codebook = self.affine_transform(codebook)
+        return codebook
 
     def forward(self, z):
         # z: [b, c, t, h, w]
         if self._need_init and self.training:
             self._init_embeddings(z)
+            
         flat_inputs = shift_dim(z, 1, -1).flatten(end_dim=-2)
+        
+        # Get potentially transformed codebook
+        codebook = self.embeddings
+        
+        # Update affine statistics if needed
+        if hasattr(self, 'affine_transform'):
+            self.affine_transform.update_running_statistics(flat_inputs, self._embeddings)
+        
         distances = (
             (flat_inputs**2).sum(dim=1, keepdim=True)
-            - 2 * flat_inputs @ self.embeddings.t()
-            + (self.embeddings.t() ** 2).sum(dim=0, keepdim=True)
+            - 2 * flat_inputs @ codebook.t()
+            + (codebook.t() ** 2).sum(dim=0, keepdim=True)
         )
+        
         # 可以计算每个batch中不同的tensor被选择的次数。
         encoding_indices = torch.argmin(distances, dim=1)
         encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
         encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
 
-        embeddings = F.embedding(encoding_indices, self.embeddings)
+        # Use the (potentially transformed) codebook for embeddings
+        embeddings = F.embedding(encoding_indices, codebook)
         embeddings = shift_dim(embeddings, -1, 1)
 
-        # 重建损失
-        commitment_loss = 0.25 * F.mse_loss(z, embeddings.detach())
+        # Commitment loss with beta parameter
+        commitment_loss = self.beta * F.mse_loss(z, embeddings.detach())
 
         # EMA codebook update
         if self.training:
@@ -192,7 +233,7 @@ class Codebook(nn.Module):
             n = self.N.sum()
             weights = (self.N + 1e-7) / (n + self.n_codes * 1e-7) * n
             encode_normalized = self.z_avg / weights.unsqueeze(1)
-            self.embeddings.data.copy_(encode_normalized)
+            self._embeddings.data.copy_(encode_normalized)
 
             y = self._tile(flat_inputs)
             _k_rand = y[torch.randperm(y.shape[0])][: self.n_codes]
@@ -201,8 +242,9 @@ class Codebook(nn.Module):
 
             # 对于那些使用次数小于1的， 长时间没有被使用的， 标记为死码，进行替代。
             usage = (self.N.view(self.n_codes, 1) >= 1).float()
-            self.embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
+            self._embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
 
+        # Straight-through estimator
         embeddings_st = (embeddings - z).detach() + z
 
         avg_probs = torch.mean(encode_onehot, dim=0)
@@ -218,6 +260,11 @@ class Codebook(nn.Module):
     def dictionary_lookup(self, encodings):
         embeddings = F.embedding(encodings, self.embeddings)
         return embeddings
+
+    def get_affine_params(self):
+        if hasattr(self, 'affine_transform'):
+            return self.affine_transform.get_affine_params()
+        return None
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
