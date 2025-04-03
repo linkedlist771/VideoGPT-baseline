@@ -32,6 +32,8 @@ class VQVAE(pl.LightningModule):
             use_running_statistics=getattr(args, 'use_running_statistics', False)
         )
         self.save_hyperparameters()
+        # Initialize a list to store validation step outputs
+        self.validation_step_outputs = []
 
     @property
     def latent_shape(self):
@@ -73,9 +75,41 @@ class VQVAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x = batch["video"]
         recon_loss, _, vq_output = self.forward(x)
-        self.log("val/recon_loss", recon_loss, prog_bar=True)
-        self.log("val/perplexity", vq_output["perplexity"], prog_bar=True)
-        self.log("val/commitment_loss", vq_output["commitment_loss"], prog_bar=True)
+        
+        # Instead of logging directly, store the results
+        result = {
+            "val_recon_loss": recon_loss,
+            "val_perplexity": vq_output["perplexity"],
+            "val_commitment_loss": vq_output["commitment_loss"],
+            "batch_size": x.size(0)  # Store batch size for weighted average
+        }
+        
+        # Store the results for epoch-end processing
+        self.validation_step_outputs.append(result)
+        
+        return result
+    
+    def on_validation_epoch_end(self):
+        # Calculate statistics across all validation batches
+        if not self.validation_step_outputs:
+            return
+            
+        # Calculate total samples across all batches
+        total_samples = sum(out["batch_size"] for out in self.validation_step_outputs)
+        
+        # Calculate weighted averages
+        avg_recon_loss = sum(out["val_recon_loss"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
+        avg_perplexity = sum(out["val_perplexity"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
+        avg_commitment_loss = sum(out["val_commitment_loss"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
+        
+        # Log the epoch-level metrics
+        self.log("val/recon_loss", avg_recon_loss, prog_bar=True)
+        self.log("val/perplexity", avg_perplexity, prog_bar=True)
+        self.log("val/commitment_loss", avg_commitment_loss, prog_bar=True)
+        
+        # Clear the outputs list to free memory
+        self.validation_step_outputs.clear()
+    
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
