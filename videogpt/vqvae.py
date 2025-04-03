@@ -73,9 +73,26 @@ class VQVAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x = batch["video"]
         recon_loss, _, vq_output = self.forward(x)
-        self.log("val/recon_loss", recon_loss, prog_bar=True)
-        self.log("val/perplexity", vq_output["perplexity"], prog_bar=True)
-        self.log("val/commitment_loss", vq_output["commitment_loss"], prog_bar=True)
+        # 返回这个batch的结果，而不是直接log
+        return {
+            "val_recon_loss": recon_loss,
+            "val_perplexity": vq_output["perplexity"],
+            "val_commitment_loss": vq_output["commitment_loss"],
+            "batch_size": x.size(0)  # 记录batch大小用于加权平均
+        }
+
+    def validation_epoch_end(self, outputs):
+        # 计算整个验证集的加权平均
+        total_samples = sum(out["batch_size"] for out in outputs)
+
+        avg_recon_loss = sum(out["val_recon_loss"] * out["batch_size"] for out in outputs) / total_samples
+        avg_perplexity = sum(out["val_perplexity"] * out["batch_size"] for out in outputs) / total_samples
+        avg_commitment_loss = sum(out["val_commitment_loss"] * out["batch_size"] for out in outputs) / total_samples
+
+        # 记录整个验证集的指标
+        self.log("val/recon_loss", avg_recon_loss, prog_bar=True)
+        self.log("val/perplexity", avg_perplexity, prog_bar=True)
+        self.log("val/commitment_loss", avg_commitment_loss, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
