@@ -30,6 +30,8 @@ class VQVAE(pl.LightningModule):
             affine_lr=getattr(args, "affine_lr", 0.0),
             affine_groups=getattr(args, "affine_groups", 1),
             use_running_statistics=getattr(args, "use_running_statistics", False),
+            top_k=getattr(args, "top_k", 5),
+            temperature=getattr(args, "temperature", 1.0),
         )
         self.save_hyperparameters()
         # Initialize a list to store validation step outputs
@@ -143,6 +145,8 @@ class VQVAE(pl.LightningModule):
         parser.add_argument("--affine_lr", type=float, default=0.0)
         parser.add_argument("--affine_groups", type=int, default=1)
         parser.add_argument("--use_running_statistics", action="store_true")
+        parser.add_argument("--top_k", type=int, default=10)
+        parser.add_argument("--temperature", type=float, default=1.0)
         return parser
 
 
@@ -197,6 +201,8 @@ class Codebook(nn.Module):
         affine_lr=0.0,
         affine_groups=1,
         use_running_statistics=False,
+        top_k=10,
+        temperature=1.0,
     ):
         super().__init__()
         self.register_buffer("_embeddings", torch.randn(n_codes, embedding_dim))
@@ -206,6 +212,8 @@ class Codebook(nn.Module):
         self.embedding_dim = embedding_dim
         self._need_init = True
         self.beta = beta
+        self.top_k = top_k
+        self.temperature = temperature
 
         # Add affine transformation support
         if affine_lr > 0:
@@ -268,8 +276,25 @@ class Codebook(nn.Module):
             + (codebook.t() ** 2).sum(dim=0, keepdim=True)
         )
 
-        # 可以计算每个batch中不同的tensor被选择的次数。
-        encoding_indices = torch.argmin(distances, dim=1)
+        # Instead of argmin, we get top-k closest vectors
+        top_k = min(self.top_k, self.n_codes)  # Make sure top_k is not larger than n_codes
+        top_k_indices = torch.topk(-distances, k=top_k, dim=1)[1]  # Negative distances for top-k smallest
+        
+        # Calculate weights based on distances for these top-k indices
+        top_k_distances = torch.gather(distances, 1, top_k_indices)
+        
+        # Convert distances to probabilities (smaller distance = higher probability)
+        # Using softmax with temperature to control the distribution sharpness
+        weights = F.softmax(-top_k_distances / self.temperature, dim=1)
+        
+        # Sample from the top-k codebook vectors using the calculated weights
+        # We'll use multinomial sampling where each row will have exactly one sampled index
+        sampled_indices = torch.multinomial(weights, num_samples=1).squeeze(1)
+        
+        # Get the actual code indices from our top-k selection
+        encoding_indices = torch.gather(top_k_indices, 1, sampled_indices.unsqueeze(1)).squeeze(1)
+        
+        # One-hot encoding and reshaping
         encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
         encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
 
