@@ -30,7 +30,7 @@ class VQVAE(pl.LightningModule):
             affine_lr=getattr(args, "affine_lr", 0.0),
             affine_groups=getattr(args, "affine_groups", 1),
             use_running_statistics=getattr(args, "use_running_statistics", False),
-            top_k=getattr(args, "top_k", 5),
+            top_k=getattr(args, "top_k", 1),
             temperature=getattr(args, "temperature", 1.0),
         )
         self.save_hyperparameters()
@@ -145,7 +145,7 @@ class VQVAE(pl.LightningModule):
         parser.add_argument("--affine_lr", type=float, default=0.0)
         parser.add_argument("--affine_groups", type=int, default=1)
         parser.add_argument("--use_running_statistics", action="store_true")
-        parser.add_argument("--top_k", type=int, default=10)
+        parser.add_argument("--top_k", type=int, default=1)
         parser.add_argument("--temperature", type=float, default=1.0)
         return parser
 
