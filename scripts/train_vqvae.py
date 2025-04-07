@@ -79,7 +79,7 @@ def main():
         ModelCheckpoint(
             dirpath=args.save_dir,
             filename="vqvae_{epoch:02d}",
-            monitor="val_recon_loss",
+            monitor="val/recon_loss",
             mode="min",
             save_last=True,
             save_top_k=2,
