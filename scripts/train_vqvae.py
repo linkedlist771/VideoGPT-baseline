@@ -63,6 +63,8 @@ def main():
     parser.add_argument("--affine_lr", type=float, default=0.0)
     parser.add_argument("--affine_groups", type=int, default=1)
     parser.add_argument("--use_running_statistics", action="store_true")
+    parser.add_argument("--shared_codes_ratio", type=float, default=0.0,
+                       help="Ratio of codebook entries to be used as shared codes (0.0-1.0)")
 
     args = parser.parse_args()
 
@@ -77,7 +79,7 @@ def main():
         ModelCheckpoint(
             dirpath=args.save_dir,
             filename="vqvae_{epoch:02d}",
-            monitor="val/recon_loss",
+            monitor="val_recon_loss",
             mode="min",
             save_last=True,
             save_top_k=2,

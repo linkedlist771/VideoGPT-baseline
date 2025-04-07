@@ -30,6 +30,8 @@ class VQVAE(pl.LightningModule):
             affine_lr=getattr(args, "affine_lr", 0.0),
             affine_groups=getattr(args, "affine_groups", 1),
             use_running_statistics=getattr(args, "use_running_statistics", False),
+            shared_codes_ratio=getattr(args, "shared_codes_ratio", 0.0),
+            top_k_experts=getattr(args, "top_k_experts", 1),
         )
         self.save_hyperparameters()
         # Initialize a list to store validation step outputs
@@ -143,6 +145,9 @@ class VQVAE(pl.LightningModule):
         parser.add_argument("--affine_lr", type=float, default=0.0)
         parser.add_argument("--affine_groups", type=int, default=1)
         parser.add_argument("--use_running_statistics", action="store_true")
+        parser.add_argument("--shared_codes_ratio", type=float, default=0.0, 
+                           help="Ratio of codebook entries to be used as shared codes (0.0-1.0)")
+        parser.add_argument("--top_k_experts", type=int, default=1)
         return parser
 
 
@@ -197,6 +202,8 @@ class Codebook(nn.Module):
         affine_lr=0.0,
         affine_groups=1,
         use_running_statistics=False,
+        shared_codes_ratio=0.0,
+        top_k_experts=1,
     ):
         super().__init__()
         self.register_buffer("_embeddings", torch.randn(n_codes, embedding_dim))
@@ -206,7 +213,20 @@ class Codebook(nn.Module):
         self.embedding_dim = embedding_dim
         self._need_init = True
         self.beta = beta
-
+        
+        # Track shared and expert-specific codes
+        self.shared_codes_ratio = shared_codes_ratio
+        self.n_shared_codes = int(n_codes * shared_codes_ratio)
+        self.n_expert_codes = n_codes - self.n_shared_codes
+        self.top_k_experts = top_k_experts
+        
+        # Register a buffer to track shared codes usage
+        if self.n_shared_codes > 0:
+            self.register_buffer("is_shared_code", torch.zeros(n_codes, dtype=torch.bool))
+            # Mark the first n_shared_codes as shared
+            self.is_shared_code[:self.n_shared_codes] = True
+            
+        
         # Add affine transformation support
         if affine_lr > 0:
             self.affine_transform = AffineTransform(
@@ -262,20 +282,105 @@ class Codebook(nn.Module):
                 flat_inputs, self._embeddings
             )
 
-        distances = (
-            (flat_inputs**2).sum(dim=1, keepdim=True)
-            - 2 * flat_inputs @ codebook.t()
-            + (codebook.t() ** 2).sum(dim=0, keepdim=True)
-        )
-
-        # 可以计算每个batch中不同的tensor被选择的次数。
-        encoding_indices = torch.argmin(distances, dim=1)
-        encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
-        encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
-
-        # Use the (potentially transformed) codebook for embeddings
-        embeddings = F.embedding(encoding_indices, codebook)
-        embeddings = shift_dim(embeddings, -1, 1)
+        # 实现共享codebook逻辑
+        if self.n_shared_codes > 0:
+            # 1. 将codebook分为shared codes和expert-specific codes
+            shared_codebook = codebook[:self.n_shared_codes]
+            expert_codebook = codebook[self.n_shared_codes:]
+            
+            # 2. 计算与全部共享codes的embedding
+            # 为每个shared code计算一个权重
+            # 计算输入与shared codes的相似度，使用点积
+            similarities = flat_inputs @ shared_codebook.t()  # [batch, n_shared_codes]
+            
+            # 将相似度转换为权重
+            shared_weights = F.softmax(similarities, dim=1)  # [batch, n_shared_codes]
+            
+            # 使用权重计算共享codes的加权贡献
+            shared_emb_contributions = torch.matmul(shared_weights, shared_codebook)  # [batch, embedding_dim]
+            
+            # 计算每个输入与所有shared codes的距离 (仅用于EMA更新统计)
+            shared_distances = (
+                (flat_inputs**2).sum(dim=1, keepdim=True)
+                - 2 * flat_inputs @ shared_codebook.t()
+                + (shared_codebook.t() ** 2).sum(dim=0, keepdim=True)
+            )
+            
+            # 3. 创建one-hot表示用于统计信息更新
+            # 为了EMA更新，我们需要记录哪些shared codes被使用
+            shared_encoding_indices = torch.argmin(shared_distances, dim=1)
+            shared_onehot = F.one_hot(shared_encoding_indices, self.n_shared_codes).type_as(flat_inputs)
+            
+            # 4. 计算与expert-specific codes的相似度score
+            expert_scores = flat_inputs @ expert_codebook.t()  # [batch, n_expert_codes]
+            
+            # 5. 选择Top-K的expert (使用配置的top_k_experts参数)
+            K = min(self.top_k_experts, self.n_expert_codes)  # 确保K不超过可用的expert数量
+            topk_scores, topk_indices = torch.topk(expert_scores, k=K, dim=1)  # [batch, K]
+            
+            # 6. 归一化得分为权重 (使用sigmoid函数，与图中公式匹配)
+            expert_weights = torch.sigmoid(topk_scores)  # [batch, K]
+            expert_weights = expert_weights / expert_weights.sum(dim=1, keepdim=True)  # [batch, K]
+            
+            # 7. 记录expert的one-hot表示用于EMA更新
+            expert_onehot = torch.zeros(
+                flat_inputs.shape[0], self.n_expert_codes, device=flat_inputs.device, dtype=flat_inputs.dtype
+            )
+            batch_indices = torch.arange(flat_inputs.shape[0], device=flat_inputs.device).repeat_interleave(K)
+            expert_indices_flat = topk_indices.reshape(-1)
+            expert_weights_flat = expert_weights.reshape(-1)
+            
+            # 8. 在expert_onehot中将选中的expert位置设为权重值
+            expert_onehot.index_put_(
+                (batch_indices, expert_indices_flat),
+                expert_weights_flat,
+                accumulate=True
+            )
+            
+            # 9. 通过embedding lookup获取expert embeddings
+            selected_expert_embeddings = F.embedding(
+                topk_indices, expert_codebook
+            )  # [batch, K, embedding_dim]
+            
+            # 10. 将expert embeddings与权重相乘并求和
+            weighted_expert_emb = (selected_expert_embeddings * expert_weights.unsqueeze(-1)).sum(dim=1)  # [batch, embedding_dim]
+            
+            # 11. 合并shared codes和expert codes的效果
+            # 根据图中公式：h't = ut + sum(FFN(s)(ut)) + sum(gi,t * FFN(r)(ut))
+            # 在VQVAE的上下文中，我们将其解释为:
+            # result = input + sum of shared contributions + weighted sum of expert contributions
+            final_embeddings = flat_inputs + shared_emb_contributions + weighted_expert_emb
+            
+            # 12. 创建完整的one-hot编码用于统计信息更新
+            # 将shared codes的onehot和expert codes的onehot拼接在一起
+            encode_onehot = torch.cat([
+                shared_onehot,  # [batch, n_shared_codes]
+                expert_onehot   # [batch, n_expert_codes]
+            ], dim=1)
+            
+            # 13. 为了与VQVAE的其余部分兼容，我们需要提供一个indices作为编码
+            # 选择贡献最大的expert作为编码索引
+            max_expert_indices = topk_indices[:, 0]  # 使用第一个（或唯一的）expert索引
+            encoding_indices = max_expert_indices + self.n_shared_codes
+            encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
+            
+            # 14. 为了与VQVAE的其余部分兼容，重新整形final_embeddings
+            embeddings = final_embeddings.reshape(z.shape[0], -1, *z.shape[2:])  # [b, embedding_dim, t, h, w]
+            embeddings = shift_dim(embeddings, 1, 1)  # 调整维度顺序
+        else:
+            # 原始距离计算方法，不使用shared codes
+            distances = (
+                (flat_inputs**2).sum(dim=1, keepdim=True)
+                - 2 * flat_inputs @ codebook.t()
+                + (codebook.t() ** 2).sum(dim=0, keepdim=True)
+            )
+            encoding_indices = torch.argmin(distances, dim=1)
+            encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
+            encoding_indices = encoding_indices.view(z.shape[0], *z.shape[2:])
+            
+            # 使用编码索引查找embeddings
+            embeddings = F.embedding(encoding_indices, codebook)
+            embeddings = shift_dim(embeddings, -1, 1)
 
         # Commitment loss with beta parameter
         commitment_loss = self.beta * F.mse_loss(z, embeddings.detach())
@@ -301,13 +406,28 @@ class Codebook(nn.Module):
             if dist.is_initialized():
                 dist.broadcast(_k_rand, 0)
 
-            # 对于那些使用次数小于1的， 长时间没有被使用的， 标记为死码，进行替代。
-            usage = (self.N.view(self.n_codes, 1) >= 1).float()
-            self._embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
+            # Handle dead codes differently for shared and expert-specific codes
+            if self.n_shared_codes > 0:
+                # For shared codes (higher priority to keep active)
+                shared_usage = (self.N[:self.n_shared_codes].view(self.n_shared_codes, 1) >= 1).float()
+                self._embeddings[:self.n_shared_codes].data.mul_(shared_usage).add_(
+                    _k_rand[:self.n_shared_codes] * (1 - shared_usage)
+                )
+                
+                # For expert-specific codes 
+                expert_usage = (self.N[self.n_shared_codes:].view(self.n_expert_codes, 1) >= 1).float()
+                self._embeddings[self.n_shared_codes:].data.mul_(expert_usage).add_(
+                    _k_rand[self.n_shared_codes:] * (1 - expert_usage)
+                )
+            else:
+                # Original behavior without shared codes
+                usage = (self.N.view(self.n_codes, 1) >= 1).float()
+                self._embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
 
         # Straight-through estimator
         embeddings_st = (embeddings - z).detach() + z
 
+        # Calculate perplexity for all codes
         avg_probs = torch.mean(encode_onehot, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
