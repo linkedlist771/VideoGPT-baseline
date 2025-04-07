@@ -24,12 +24,12 @@ class VQVAE(pl.LightningModule):
         self.pre_vq_conv = SamePadConv3d(args.n_hiddens, args.embedding_dim, 1)
         self.post_vq_conv = SamePadConv3d(args.embedding_dim, args.n_hiddens, 1)
         self.codebook = Codebook(
-            args.n_codes, 
+            args.n_codes,
             args.embedding_dim,
-            beta=getattr(args, 'beta', 0.25),
-            affine_lr=getattr(args, 'affine_lr', 0.0),
-            affine_groups=getattr(args, 'affine_groups', 1),
-            use_running_statistics=getattr(args, 'use_running_statistics', False)
+            beta=getattr(args, "beta", 0.25),
+            affine_lr=getattr(args, "affine_lr", 0.0),
+            affine_groups=getattr(args, "affine_groups", 1),
+            use_running_statistics=getattr(args, "use_running_statistics", False),
         )
         self.save_hyperparameters()
         # Initialize a list to store validation step outputs
@@ -75,41 +75,58 @@ class VQVAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x = batch["video"]
         recon_loss, _, vq_output = self.forward(x)
-        
+
         # Instead of logging directly, store the results
         result = {
             "val_recon_loss": recon_loss,
             "val_perplexity": vq_output["perplexity"],
             "val_commitment_loss": vq_output["commitment_loss"],
-            "batch_size": x.size(0)  # Store batch size for weighted average
+            "batch_size": x.size(0),  # Store batch size for weighted average
         }
-        
+
         # Store the results for epoch-end processing
         self.validation_step_outputs.append(result)
-        
+
         return result
-    
+
     def on_validation_epoch_end(self):
         # Calculate statistics across all validation batches
         if not self.validation_step_outputs:
             return
-            
+
         # Calculate total samples across all batches
         total_samples = sum(out["batch_size"] for out in self.validation_step_outputs)
-        
+
         # Calculate weighted averages
-        avg_recon_loss = sum(out["val_recon_loss"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
-        avg_perplexity = sum(out["val_perplexity"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
-        avg_commitment_loss = sum(out["val_commitment_loss"] * out["batch_size"] for out in self.validation_step_outputs) / total_samples
-        
+        avg_recon_loss = (
+            sum(
+                out["val_recon_loss"] * out["batch_size"]
+                for out in self.validation_step_outputs
+            )
+            / total_samples
+        )
+        avg_perplexity = (
+            sum(
+                out["val_perplexity"] * out["batch_size"]
+                for out in self.validation_step_outputs
+            )
+            / total_samples
+        )
+        avg_commitment_loss = (
+            sum(
+                out["val_commitment_loss"] * out["batch_size"]
+                for out in self.validation_step_outputs
+            )
+            / total_samples
+        )
+
         # Log the epoch-level metrics
         self.log("val/recon_loss", avg_recon_loss, prog_bar=True)
         self.log("val/perplexity", avg_perplexity, prog_bar=True)
         self.log("val/commitment_loss", avg_commitment_loss, prog_bar=True)
-        
+
         # Clear the outputs list to free memory
         self.validation_step_outputs.clear()
-    
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
@@ -172,7 +189,15 @@ class AttentionResidualBlock(nn.Module):
 
 
 class Codebook(nn.Module):
-    def __init__(self, n_codes, embedding_dim, beta=0.25, affine_lr=0.0, affine_groups=1, use_running_statistics=False):
+    def __init__(
+        self,
+        n_codes,
+        embedding_dim,
+        beta=0.25,
+        affine_lr=0.0,
+        affine_groups=1,
+        use_running_statistics=False,
+    ):
         super().__init__()
         self.register_buffer("_embeddings", torch.randn(n_codes, embedding_dim))
         self.register_buffer("N", torch.zeros(n_codes))
@@ -181,7 +206,7 @@ class Codebook(nn.Module):
         self.embedding_dim = embedding_dim
         self._need_init = True
         self.beta = beta
-        
+
         # Add affine transformation support
         if affine_lr > 0:
             self.affine_transform = AffineTransform(
@@ -217,7 +242,7 @@ class Codebook(nn.Module):
     def embeddings(self):
         """Property that returns the potentially transformed codebook entries"""
         codebook = self._embeddings
-        if hasattr(self, 'affine_transform'):
+        if hasattr(self, "affine_transform"):
             codebook = self.affine_transform(codebook)
         return codebook
 
@@ -225,22 +250,24 @@ class Codebook(nn.Module):
         # z: [b, c, t, h, w]
         if self._need_init and self.training:
             self._init_embeddings(z)
-            
+
         flat_inputs = shift_dim(z, 1, -1).flatten(end_dim=-2)
-        
+
         # Get potentially transformed codebook
         codebook = self.embeddings
-        
+
         # Update affine statistics if needed
-        if hasattr(self, 'affine_transform'):
-            self.affine_transform.update_running_statistics(flat_inputs, self._embeddings)
-        
+        if hasattr(self, "affine_transform"):
+            self.affine_transform.update_running_statistics(
+                flat_inputs, self._embeddings
+            )
+
         distances = (
             (flat_inputs**2).sum(dim=1, keepdim=True)
             - 2 * flat_inputs @ codebook.t()
             + (codebook.t() ** 2).sum(dim=0, keepdim=True)
         )
-        
+
         # 可以计算每个batch中不同的tensor被选择的次数。
         encoding_indices = torch.argmin(distances, dim=1)
         encode_onehot = F.one_hot(encoding_indices, self.n_codes).type_as(flat_inputs)
@@ -296,7 +323,7 @@ class Codebook(nn.Module):
         return embeddings
 
     def get_affine_params(self):
-        if hasattr(self, 'affine_transform'):
+        if hasattr(self, "affine_transform"):
             return self.affine_transform.get_affine_params()
         return None
 
