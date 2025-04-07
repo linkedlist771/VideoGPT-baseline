@@ -8,9 +8,9 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .affine import AffineTransform
 from .attention import MultiHeadAttention
 from .utils import shift_dim
-from .affine import AffineTransform
 
 
 class VQVAE(pl.LightningModule):
