@@ -36,7 +36,7 @@ def main():
 
     # Add VideoSimVP specific arguments
     parser = VideoSimVP.add_model_specific_args(parser)
-    
+
     args = parser.parse_args()
 
     data = VideoData(args)
@@ -71,36 +71,34 @@ def main():
 
     if args.gpus > 1:
         trainer_kwargs.update(
-            {
-                "strategy": "ddp",
-            }
+            {"strategy": "ddp",}
         )
 
     trainer = pl.Trainer(**trainer_kwargs)
     trainer.fit(model, data)
 
     trainer.save_checkpoint(f"{args.save_dir}/simvp_final.ckpt")
-    
+
     # Generate and save sample predictions
     import os
     import torch
     from torchvision.utils import save_image
-    
+
     os.makedirs(f"{args.save_dir}/samples", exist_ok=True)
     model.eval()
-    
+
     with torch.no_grad():
         batch = next(iter(data.val_dataloader()))
         samples = model.sample(4, batch)
-        
+
         # Reshape to sequence of frames
         B, T, C, H, W = samples.shape
         samples = samples.reshape(B * T, C, H, W)
-        
+
         # Save as grid
         save_image(samples, f"{args.save_dir}/samples/simvp_samples.png", nrow=T)
         print(f"Saved samples to {args.save_dir}/samples/simvp_samples.png")
 
 
 if __name__ == "__main__":
-    main() 
+    main()

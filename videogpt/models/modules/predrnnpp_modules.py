@@ -3,8 +3,9 @@ import torch.nn as nn
 
 
 class CausalLSTMCell(nn.Module):
-
-    def __init__(self, in_channel, num_hidden, height, width, filter_size, stride, layer_norm):
+    def __init__(
+        self, in_channel, num_hidden, height, width, filter_size, stride, layer_norm
+    ):
         super(CausalLSTMCell, self).__init__()
 
         self.num_hidden = num_hidden
@@ -12,79 +13,165 @@ class CausalLSTMCell(nn.Module):
         self._forget_bias = 1.0
         if layer_norm:
             self.conv_x = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 7, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 7, height, width])
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 7,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 7, height, width]),
             )
             self.conv_h = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 4, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 4, height, width]),
             )
             self.conv_c = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 3, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 3, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 3,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 3, height, width]),
             )
             self.conv_m = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 3, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 3, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 3,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 3, height, width]),
             )
             self.conv_o = nn.Sequential(
-                nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden, height, width])
+                nn.Conv2d(
+                    num_hidden * 2,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden, height, width]),
             )
             self.conv_c2m = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 4, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 4, height, width]),
             )
             self.conv_om = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden, height, width]),
             )
         else:
             self.conv_x = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 7, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 7,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_h = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_c = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 3, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 3,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_m = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 3, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 3,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_o = nn.Sequential(
-                nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden * 2,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_c2m = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_om = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
-        self.conv_last = nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=1,
-                                   stride=1, padding=0, bias=False)
+        self.conv_last = nn.Conv2d(
+            num_hidden * 2, num_hidden, kernel_size=1, stride=1, padding=0, bias=False
+        )
 
     def forward(self, x_t, h_t, c_t, m_t):
         x_concat = self.conv_x(x_t)
         h_concat = self.conv_h(h_t)
         c_concat = self.conv_c(c_t)
         m_concat = self.conv_m(m_t)
-        i_x, f_x, g_x, i_x_prime, f_x_prime, g_x_prime, o_x = \
-            torch.split(x_concat, self.num_hidden, dim=1)
+        i_x, f_x, g_x, i_x_prime, f_x_prime, g_x_prime, o_x = torch.split(
+            x_concat, self.num_hidden, dim=1
+        )
         i_h, f_h, g_h, o_h = torch.split(h_concat, self.num_hidden, dim=1)
         i_m, f_m, m_m = torch.split(m_concat, self.num_hidden, dim=1)
         i_c, f_c, g_c = torch.split(c_concat, self.num_hidden, dim=1)
@@ -113,8 +200,17 @@ class CausalLSTMCell(nn.Module):
 
 
 class GHU(nn.Module):
-    def __init__(self, in_channel, num_hidden, height, width, filter_size,
-                 stride, layer_norm, initializer=0.001):
+    def __init__(
+        self,
+        in_channel,
+        num_hidden,
+        height,
+        width,
+        filter_size,
+        stride,
+        layer_norm,
+        initializer=0.001,
+    ):
         super(GHU, self).__init__()
 
         self.filter_size = filter_size
@@ -124,25 +220,48 @@ class GHU(nn.Module):
 
         if layer_norm:
             self.z_concat = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 2, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden, height, width])
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 2,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden, height, width]),
             )
             self.x_concat = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 2, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden, height, width])
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 2,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden, height, width]),
             )
         else:
             self.z_concat = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 2, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 2,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.x_concat = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 2, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 2,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
-
 
         if initializer != -1:
             self.initializer = initializer
@@ -165,5 +284,5 @@ class GHU(nn.Module):
         p, u = torch.split(gates, self.num_hidden, dim=1)
         p = torch.tanh(p)
         u = torch.sigmoid(u)
-        z_new = u * p + (1-u) * z
+        z_new = u * p + (1 - u) * z
         return z_new

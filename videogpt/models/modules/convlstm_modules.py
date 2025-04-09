@@ -3,8 +3,9 @@ import torch.nn as nn
 
 
 class ConvLSTMCell(nn.Module):
-
-    def __init__(self, in_channel, num_hidden, height, width, filter_size, stride, layer_norm):
+    def __init__(
+        self, in_channel, num_hidden, height, width, filter_size, stride, layer_norm
+    ):
         super(ConvLSTMCell, self).__init__()
 
         self.num_hidden = num_hidden
@@ -12,35 +13,72 @@ class ConvLSTMCell(nn.Module):
         self._forget_bias = 1.0
         if layer_norm:
             self.conv_x = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 4, height, width])
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 4, height, width]),
             )
             self.conv_h = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden * 4, height, width])
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden * 4, height, width]),
             )
             self.conv_o = nn.Sequential(
-                nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
-                nn.LayerNorm([num_hidden, height, width])
+                nn.Conv2d(
+                    num_hidden * 2,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
+                nn.LayerNorm([num_hidden, height, width]),
             )
         else:
             self.conv_x = nn.Sequential(
-                nn.Conv2d(in_channel, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    in_channel,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_h = nn.Sequential(
-                nn.Conv2d(num_hidden, num_hidden * 4, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden,
+                    num_hidden * 4,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
             self.conv_o = nn.Sequential(
-                nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=filter_size,
-                          stride=stride, padding=self.padding, bias=False),
+                nn.Conv2d(
+                    num_hidden * 2,
+                    num_hidden,
+                    kernel_size=filter_size,
+                    stride=stride,
+                    padding=self.padding,
+                    bias=False,
+                ),
             )
-        self.conv_last = nn.Conv2d(num_hidden * 2, num_hidden, kernel_size=1,
-                                   stride=1, padding=0, bias=False)
+        self.conv_last = nn.Conv2d(
+            num_hidden * 2, num_hidden, kernel_size=1, stride=1, padding=0, bias=False
+        )
 
     def forward(self, x_t, h_t, c_t):
         x_concat = self.conv_x(x_t)
