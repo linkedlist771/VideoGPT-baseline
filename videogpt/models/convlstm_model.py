@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from openstl.modules import ConvLSTMCell
+from .modules import ConvLSTMCell
 
 
 class ConvLSTM_Model(nn.Module):

@@ -2,7 +2,7 @@ import random
 import torch
 from torch import nn
 
-from openstl.modules import PhyCell, PhyD_ConvLSTM, PhyD_EncoderRNN, K2M
+from .modules import PhyCell, PhyD_ConvLSTM, PhyD_EncoderRNN, K2M
 
 
 class PhyDNet_Model(nn.Module):

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from openstl.modules import SpatioTemporalLSTMCell
+from .modules import SpatioTemporalLSTMCell
 
 
 class PredRNN_Model(nn.Module):

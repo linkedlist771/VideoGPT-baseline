@@ -3,8 +3,8 @@ from torch import nn
 import numpy as np
 import torch.nn.functional as F
 
-from openstl.modules import RRDB, ResBlock, Up, PredictModel
-from openstl.utils import (
+from .modules import RRDB, ResBlock, Up, PredictModel
+from .utils import (
     build_similarity_matrix,
     sim_matrix_interpolate,
     sim_matrix_postprocess,

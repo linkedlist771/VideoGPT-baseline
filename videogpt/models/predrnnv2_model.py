@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from openstl.modules import SpatioTemporalLSTMCellv2
+from .modules import SpatioTemporalLSTMCellv2
 
 
 class PredRNNv2_Model(nn.Module):

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from openstl.modules import Eidetic3DLSTMCell
+from .modules import Eidetic3DLSTMCell
 
 
 class E3DLSTM_Model(nn.Module):

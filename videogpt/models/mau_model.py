@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 
-from openstl.modules import MAUCell
+from .modules import MAUCell
 
 
 class MAU_Model(nn.Module):
