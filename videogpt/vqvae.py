@@ -32,6 +32,7 @@ class VQVAE(pl.LightningModule):
             use_running_statistics=getattr(args, "use_running_statistics", False),
             top_k=getattr(args, "top_k", 1),
             temperature=getattr(args, "temperature", 1.0),
+            disable_random_replacement=getattr(args, "disable_random_replacement", False),
         )
         self.save_hyperparameters()
         # Initialize a list to store validation step outputs
@@ -147,6 +148,7 @@ class VQVAE(pl.LightningModule):
         parser.add_argument("--use_running_statistics", action="store_true")
         parser.add_argument("--top_k", type=int, default=1)
         parser.add_argument("--temperature", type=float, default=1.0)
+        parser.add_argument("--disable_random_replacement", action="store_true")
         return parser
 
 
@@ -203,6 +205,7 @@ class Codebook(nn.Module):
         use_running_statistics=False,
         top_k=10,
         temperature=1.0,
+        disable_random_replacement=False,
     ):
         super().__init__()
         self.register_buffer("_embeddings", torch.randn(n_codes, embedding_dim))
@@ -214,7 +217,7 @@ class Codebook(nn.Module):
         self.beta = beta
         self.top_k = top_k
         self.temperature = temperature
-
+        self.disable_random_replacement = disable_random_replacement
         # Add affine transformation support
         if affine_lr > 0:
             self.affine_transform = AffineTransform(
@@ -325,10 +328,11 @@ class Codebook(nn.Module):
             _k_rand = y[torch.randperm(y.shape[0])][: self.n_codes]
             if dist.is_initialized():
                 dist.broadcast(_k_rand, 0)
-
-            # 对于那些使用次数小于1的， 长时间没有被使用的， 标记为死码，进行替代。
-            usage = (self.N.view(self.n_codes, 1) >= 1).float()
-            self._embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
+            
+            if not self.disable_random_replacement:
+                # 对于那些使用次数小于1的， 长时间没有被使用的， 标记为死码，进行替代。
+                usage = (self.N.view(self.n_codes, 1) >= 1).float()
+                self._embeddings.data.mul_(usage).add_(_k_rand * (1 - usage))
 
         # Straight-through estimator
         embeddings_st = (embeddings - z).detach() + z

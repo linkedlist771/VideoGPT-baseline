@@ -66,7 +66,7 @@ def main():
     parser.add_argument("--use_running_statistics", action="store_true")
     parser.add_argument("--top_k", type=int, default=1)
     parser.add_argument("--temperature", type=float, default=1.0)
-
+    parser.add_argument("--disable_random_replacement", action="store_true")
     args = parser.parse_args()
 
     data = VideoData(args)
