@@ -1,6 +1,5 @@
 # Copyright (c) CAIRI AI Lab. All rights reserved
 
-import cv2
 import os
 import logging
 import subprocess
@@ -51,7 +50,7 @@ def collect_env():
     env_info['PyTorch'] = torch.__version__
     env_info['PyTorch compiling details'] = torch.__config__.show()
     env_info['TorchVision'] = torchvision.__version__
-    env_info['OpenCV'] = cv2.__version__
+    # env_info['OpenCV'] = cv2.__version__
 
     # env_info['openstl'] = openstl.__version__
 
@@ -61,6 +60,9 @@ def collect_env():
 def print_log(message):
     print(message)
     logging.info(message)
+
+def get_dataset():
+    raise NotImplementedError
 
 
 def output_namespace(namespace):
