@@ -26,7 +26,6 @@ def main():
     parser.add_argument("--max_steps", type=int, default=50000)
     parser.add_argument("--gradient_clip_val", type=float, default=1.0)
     parser.add_argument("--precision", type=int, default=16)
-    parser.add_argument("--resume_from_checkpoint", type=str, default=None)
     parser.add_argument(
         "--save_dir",
         type=str,
@@ -66,7 +65,6 @@ def main():
         "precision": args.precision,
         "val_check_interval": 0.1,  # validate every 10% of training steps
         "log_every_n_steps": 10,
-        "resume_from_checkpoint": args.resume_from_checkpoint,
     }
 
     if args.gpus > 1:
