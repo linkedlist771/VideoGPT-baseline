@@ -32,6 +32,7 @@ class VideoSimVP(pl.LightningModule):
             p.requires_grad = False
         self.vqvae.codebook._need_init = False
         self.vqvae.eval()
+        self.criterion = nn.MSELoss()
 
         # Get the latent shape from VQ-VAE
         self.latent_shape = self.vqvae.latent_shape
@@ -120,19 +121,19 @@ class VideoSimVP(pl.LightningModule):
         with torch.no_grad():
             # torch.Size([2, 2, 32, 32]),  torch.Size([2, 256, 2, 32, 32])
             encoding_x, embedding_x = self.vqvae.encode(batch_x, include_embeddings=True)
-            # torch.Size([2, 2, 32, 32, 256])
+            # # torch.Size([2, 2, 32, 32, 256])
             embedding_x = shift_dim(embedding_x, 1, -1)
 
             encoding_y, embedding_y = self.vqvae.encode(batch_y, include_embeddings=True)
             embedding_y = shift_dim(embedding_y, 1, -1)
 
-            predicted_y = self(embedding_x)
-
-
-            # dx = shift_dim(embedding_x, 1, -1)
-
-
+        predicted_y = self.forward(embedding_x)
+        loss = self.criterion(predicted_y, embedding_y)
+        # dx = shift_dim(embedding_x, 1, -1)
         # loss, _ = self(x, targets)
+        return loss
+
+
 
     # for the forward, it takes in the self.args.n_cond_frames frames and predcited the
     # same size of the output.
@@ -146,17 +147,20 @@ class VideoSimVP(pl.LightningModule):
 
         # append a new dimension in the downsampled tensor
 
-        # maybe not use the simvp model's forwar, just its middle
+        # maybe not use the simvp model's forward, just its middle
 
+        # OK, for new, we just treats the hidden dim as the channel dim
 
-        x = x.unsqueeze(2)
-
+        # 假设你的张量名为 x
+        x = x.permute(0, 1, 4, 2, 3)
+        simvp_out = self.simvp(x)
+        return simvp_out
 
         # Get the latent embeddings from VQ-VAE
-        with torch.no_grad():
-            # Reshape for VQ-VAE encoding
-            B, C, T, H, W = x.shape
-            x_flat = x.reshape(B * T, C, H, W)
+        # with torch.no_grad():
+        #     # Reshape for VQ-VAE encoding
+        #     B, C, T, H, W = x.shape
+        #     x_flat = x.reshape(B * T, C, H, W)
             #
             # # Get encodings and embeddings from VQ-VAE
             # encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
@@ -179,11 +183,10 @@ class VideoSimVP(pl.LightningModule):
             #     cur_pred = self.simvp(cur_frames)
             #     pred_embeddings.append(cur_pred[:, :m])
 
-            # Concatenate all predictions
-            simvp_out = torch.cat(pred_embeddings, dim=1)
+            # # Concatenate all predictions
+            # simvp_out = torch.cat(pred_embeddings, dim=1)
 
         # Return the predicted embeddings and the target encodings
-        return simvp_out, encodings
 
 
     def validation_step(self, batch, batch_idx):
@@ -283,7 +286,10 @@ class VideoSimVP(pl.LightningModule):
             default=1,
             help="number of frames to predict (default: same as n_cond_frames)",
         )
+
         # SimVP hyperparameters
+        parser.add_argument("--n_down_sample_cond_frames", type=int, default=2, help="number of downsampled frames"
+                                                                                     "downsampled by vqvae, will be input into simvp")
         parser.add_argument("--hid_S", type=int, default=64)
         parser.add_argument("--hid_T", type=int, default=512)
         parser.add_argument("--N_S", type=int, default=4)
