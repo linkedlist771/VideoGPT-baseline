@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
+from docutils.nodes import target
 from tqdm import tqdm
 
 from .models.simvp_model import SimVP_Model
@@ -37,7 +38,7 @@ class VideoSimVP(pl.LightningModule):
         # Create SimVP model for latent prediction
         self.simvp = SimVP_Model(
             in_shape=(
-                args.n_cond_frames,
+                args.n_down_sample_cond_frames, # not the cond frames, but the downsampled
                 self.vqvae.embedding_dim,
                 self.latent_shape[1],
                 self.latent_shape[2],
@@ -60,60 +61,123 @@ class VideoSimVP(pl.LightningModule):
     def get_reconstruction(self, videos):
         return self.vqvae.decode(self.vqvae.encode(videos))
 
+    # def compute_loss(self, batch):
+    #     """Compute training or validation loss."""
+    #     x = batch["video"]
+    #
+    #     # Forward pass
+    #     pred_embeddings, target_encodings = self(x)
+    #
+    #     # Get prediction length
+    #     if hasattr(self.args, "n_pred_frames") and self.args.n_pred_frames is not None:
+    #         n_pred_frames = self.args.n_pred_frames
+    #     else:
+    #         n_pred_frames = self.args.n_cond_frames
+    #
+    #     # Compute reconstruction loss
+    #     # Get the predicted frames (excluding conditioning frames)
+    #     pred_frames = self.vqvae.decode(pred_embeddings.reshape(-1, *self.latent_shape))
+    #
+    #     # Reshape pred_frames to match video shape
+    #     B = x.shape[0]
+    #     pred_frames = pred_frames.reshape(B, -1, *x.shape[2:])
+    #
+    #     # Get the appropriate target frames based on prediction length
+    #     if n_pred_frames <= self.args.n_cond_frames:
+    #         target_frames = x[
+    #             :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
+    #         ]
+    #     else:
+    #         # For autoregressive prediction, we need frames beyond conditioning
+    #         target_frames = x[
+    #             :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
+    #         ]
+    #         # In case we don't have enough target frames in dataset, truncate prediction
+    #         if target_frames.shape[2] < n_pred_frames:
+    #             pred_frames = pred_frames[:, :, : target_frames.shape[2]]
+    #
+    #     # Flatten for MSE calculation
+    #     pred_frames = pred_frames.reshape(-1, *pred_frames.shape[3:])
+    #     target_frames = target_frames.reshape(-1, *target_frames.shape[3:])
+    #
+    #     recon_loss = F.mse_loss(pred_frames, target_frames)
+    #
+    #     return recon_loss
+
+
+
+
+    def training_step(self, batch, batch_idx):
+        self.vqvae.eval()
+        x = batch['video']
+        # self.args.n_cond_frames is the input size and the output size
+        # no matter what the predicted size.
+        # for this model, it only takes in the same size of the input and the ouput
+        # torch.Size([2, 3, 8, 128, 128])
+
+        batch_x = x[:, :, :self.args.n_cond_frames, :, :]
+        batch_y = x[:, :, self.args.n_cond_frames:, :, :]
+        with torch.no_grad():
+            # torch.Size([2, 2, 32, 32]),  torch.Size([2, 256, 2, 32, 32])
+            encoding_x, embedding_x = self.vqvae.encode(batch_x, include_embeddings=True)
+            # torch.Size([2, 2, 32, 32, 256])
+            embedding_x = shift_dim(embedding_x, 1, -1)
+
+            encoding_y, embedding_y = self.vqvae.encode(batch_y, include_embeddings=True)
+            embedding_y = shift_dim(embedding_y, 1, -1)
+
+            predicted_y = self(embedding_x)
+
+
+            # dx = shift_dim(embedding_x, 1, -1)
+
+
+        # loss, _ = self(x, targets)
+
+    # for the forward, it takes in the self.args.n_cond_frames frames and predcited the
+    # same size of the output.
     def forward(self, x):
-        """
-        x: input video frames of shape [B, C, T, H, W]
-        """
+        # torch.Size([2, 2, 32, 32, 256])
+        # batch size, downsample sequence length,  downsample height, downsample width, embedding dim
+        # but we can treat it as
+        # batch size, sequence length,  height, weight, hidden dim. a more layer.
+
+        #  simvp takes in this    B, T, C, H, W = x_raw.shape
+
+        # append a new dimension in the downsampled tensor
+
+        # maybe not use the simvp model's forwar, just its middle
+
+
+        x = x.unsqueeze(2)
+
+
         # Get the latent embeddings from VQ-VAE
         with torch.no_grad():
             # Reshape for VQ-VAE encoding
             B, C, T, H, W = x.shape
             x_flat = x.reshape(B * T, C, H, W)
+            #
+            # # Get encodings and embeddings from VQ-VAE
+            # encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
+            #
+            # # Reshape back to batch form
+            # embeddings = embeddings.reshape(
+            #     B, T, -1, self.latent_shape[1], self.latent_shape[2]
+            # )
+            # encodings = encodings.reshape(B, T, *self.latent_shape)
 
-            # Get encodings and embeddings from VQ-VAE
-            encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
-
-            # Reshape back to batch form
-            embeddings = embeddings.reshape(
-                B, T, -1, self.latent_shape[1], self.latent_shape[2]
-            )
-            encodings = encodings.reshape(B, T, *self.latent_shape)
-
-        # Input conditioning frames to SimVP
-        cond_frames = embeddings[:, : self.args.n_cond_frames]
-
-        # Calculate prediction length
-        if hasattr(self.args, "n_pred_frames") and self.args.n_pred_frames is not None:
-            n_pred_frames = self.args.n_pred_frames
-        else:
-            # Default to same as conditioning frames if not specified
-            n_pred_frames = self.args.n_cond_frames
-
-        # Handle different prediction length scenarios
-        if n_pred_frames <= self.args.n_cond_frames:
-            # Standard case: predict frames up to n_pred_frames
-            simvp_out = self.simvp(cond_frames)
-            if n_pred_frames < self.args.n_cond_frames:
-                simvp_out = simvp_out[:, :n_pred_frames]
-        else:
-            # Autoregressive case: predict more frames than conditioning frames
-            pred_embeddings = []
-            cur_frames = cond_frames.clone()
-
-            # Calculate how many full iterations needed
-            d = n_pred_frames // self.args.n_cond_frames
-            m = n_pred_frames % self.args.n_cond_frames
-
-            # Generate predictions in chunks
-            for _ in range(d):
-                cur_pred = self.simvp(cur_frames)
-                pred_embeddings.append(cur_pred)
-                cur_frames = cur_pred  # Use predictions as next input
-
-            # Handle remaining frames if needed
-            if m > 0:
-                cur_pred = self.simvp(cur_frames)
-                pred_embeddings.append(cur_pred[:, :m])
+            #
+            # # Generate predictions in chunks
+            # for _ in range(d):
+            #     cur_pred = self.simvp(cur_frames)
+            #     pred_embeddings.append(cur_pred)
+            #     cur_frames = cur_pred  # Use predictions as next input
+            #
+            # # Handle remaining frames if needed
+            # if m > 0:
+            #     cur_pred = self.simvp(cur_frames)
+            #     pred_embeddings.append(cur_pred[:, :m])
 
             # Concatenate all predictions
             simvp_out = torch.cat(pred_embeddings, dim=1)
@@ -121,59 +185,11 @@ class VideoSimVP(pl.LightningModule):
         # Return the predicted embeddings and the target encodings
         return simvp_out, encodings
 
-    def compute_loss(self, batch):
-        """Compute training or validation loss."""
-        x = batch["video"]
-
-        # Forward pass
-        pred_embeddings, target_encodings = self(x)
-
-        # Get prediction length
-        if hasattr(self.args, "n_pred_frames") and self.args.n_pred_frames is not None:
-            n_pred_frames = self.args.n_pred_frames
-        else:
-            n_pred_frames = self.args.n_cond_frames
-
-        # Compute reconstruction loss
-        # Get the predicted frames (excluding conditioning frames)
-        pred_frames = self.vqvae.decode(pred_embeddings.reshape(-1, *self.latent_shape))
-
-        # Reshape pred_frames to match video shape
-        B = x.shape[0]
-        pred_frames = pred_frames.reshape(B, -1, *x.shape[2:])
-
-        # Get the appropriate target frames based on prediction length
-        if n_pred_frames <= self.args.n_cond_frames:
-            target_frames = x[
-                :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
-            ]
-        else:
-            # For autoregressive prediction, we need frames beyond conditioning
-            target_frames = x[
-                :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
-            ]
-            # In case we don't have enough target frames in dataset, truncate prediction
-            if target_frames.shape[2] < n_pred_frames:
-                pred_frames = pred_frames[:, :, : target_frames.shape[2]]
-
-        # Flatten for MSE calculation
-        pred_frames = pred_frames.reshape(-1, *pred_frames.shape[3:])
-        target_frames = target_frames.reshape(-1, *target_frames.shape[3:])
-
-        recon_loss = F.mse_loss(pred_frames, target_frames)
-
-        return recon_loss
-
-    def training_step(self, batch, batch_idx):
-        self.vqvae.eval()
-        loss = self.compute_loss(batch)
-        self.log("train/loss", loss, prog_bar=True)
-        return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.compute_loss(batch)
+        loss = self.training_step(batch, batch_idx)
         self.log("val/loss", loss, prog_bar=True)
-        return loss
+
 
     def sample(self, n, batch=None):
         """Generate new video samples."""
