@@ -17,13 +17,13 @@ if IS_HIGH_VERSION:
 
 
 class HighFocalFrequencyLoss(nn.Module):
-    """ Example:
-        fake = torch.randn(4, 3, 128, 64)
-        real = torch.randn(4, 3, 128, 64)
-        hffl = HighFocalFrequencyLoss()
+    """Example:
+    fake = torch.randn(4, 3, 128, 64)
+    real = torch.randn(4, 3, 128, 64)
+    hffl = HighFocalFrequencyLoss()
 
-        loss = hffl(fake, real)
-        print(loss)
+    loss = hffl(fake, real)
+    print(loss)
     """
 
     def __init__(
@@ -179,14 +179,14 @@ class HighFocalFrequencyLoss(nn.Module):
 
 class WaveletTransform2D(nn.Module):
     """Compute a two-dimensional wavelet transform.
-        loss = nn.MSELoss()
-        data = torch.rand(1, 3, 128, 256)
-        DWT = WaveletTransform2D()
-        IDWT = WaveletTransform2D(inverse=True)
+    loss = nn.MSELoss()
+    data = torch.rand(1, 3, 128, 256)
+    DWT = WaveletTransform2D()
+    IDWT = WaveletTransform2D(inverse=True)
 
-        LL, LH, HL, HH = DWT(data)
-        recdata = IDWT([LL, LH, HL, HH])
-        print(loss(data, recdata))
+    LL, LH, HL, HH = DWT(data)
+    recdata = IDWT([LL, LH, HL, HH])
+    print(loss(data, recdata))
     """
 
     def __init__(self, inverse=False, wavelet="haar", mode="constant"):
@@ -268,20 +268,20 @@ class WaveletTransform2D(nn.Module):
 
 class WaveletTransform3D(nn.Module):
     """Compute a three-dimensional wavelet transform.
-        Example:
-            loss = nn.MSELoss()
-            data = torch.rand(1, 3, 10, 128, 256)
-            DWT = WaveletTransform3D()
-            IDWT = WaveletTransform3D(inverse=True)
+    Example:
+        loss = nn.MSELoss()
+        data = torch.rand(1, 3, 10, 128, 256)
+        DWT = WaveletTransform3D()
+        IDWT = WaveletTransform3D(inverse=True)
 
-            LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH = DWT(data)
-            recdata = IDWT([LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH])
-            print(loss(data, recdata))
+        LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH = DWT(data)
+        recdata = IDWT([LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH])
+        print(loss(data, recdata))
 
-            LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH = DWT_3D(data)
-            recdata = IDWT_3D(LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH)
-            print(loss(data, recdata))
-        """
+        LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH = DWT_3D(data)
+        recdata = IDWT_3D(LLL, LLH, LHL, LHH, HLL, HLH, HHL, HHH)
+        print(loss(data, recdata))
+    """
 
     def __init__(self, inverse=False, wavelet="haar", mode="constant"):
         super(WaveletTransform3D, self).__init__()

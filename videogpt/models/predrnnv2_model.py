@@ -87,7 +87,6 @@ class PredRNNv2_Model(nn.Module):
         memory = torch.zeros([batch, self.num_hidden[0], height, width], device=device)
 
         for t in range(self.configs.total_length - 1):
-
             if self.configs.reverse_scheduled_sampling == 1:
                 # reverse schedule sampling
                 if t == 0:

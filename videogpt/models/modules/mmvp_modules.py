@@ -85,7 +85,6 @@ class Up(nn.Module):
                 self.conv = ConvLayer(out_channels, out_channels, bn=bn, motion=motion)
 
     def forward(self, x1, x2=None):
-
         x1 = self.up(x1)
         if x2 is None:
             return self.conv(x1)
@@ -499,7 +498,6 @@ class PredictModel(nn.Module):
         return out_tensor
 
     def forward(self, matrix_seq, softmax=False, res=None):
-
         B, T, hw, window_size = matrix_seq.size()
 
         matrix_seq = matrix_seq.reshape(-1, hw, self.mx_h, self.mx_w)  # (BT,hw,hw)

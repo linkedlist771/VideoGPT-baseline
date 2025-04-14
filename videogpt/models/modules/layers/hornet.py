@@ -18,7 +18,7 @@ class gnconv(nn.Module):
     def __init__(self, dim, order=5, gflayer=None, h=14, w=8, s=1.0):
         super().__init__()
         self.order = order
-        self.dims = [dim // 2 ** i for i in range(order)]
+        self.dims = [dim // 2**i for i in range(order)]
         self.dims.reverse()
         self.proj_in = nn.Conv2d(dim, 2 * dim, 1)
 
@@ -56,9 +56,9 @@ class gnconv(nn.Module):
 
 
 class LayerNorm(nn.Module):
-    r""" LayerNorm that supports two data formats: channels_last (default) or channels_first. 
-    The ordering of the dimensions in the inputs. channels_last corresponds to inputs with 
-    shape (batch_size, height, width, channels) while channels_first corresponds to inputs 
+    r"""LayerNorm that supports two data formats: channels_last (default) or channels_first.
+    The ordering of the dimensions in the inputs. channels_last corresponds to inputs with
+    shape (batch_size, height, width, channels) while channels_first corresponds to inputs
     with shape (batch_size, channels, height, width).
     """
 
@@ -86,7 +86,7 @@ class LayerNorm(nn.Module):
 
 
 class HorBlock(nn.Module):
-    """ HorNet block """
+    """HorNet block"""
 
     def __init__(
         self, dim, order=4, mlp_ratio=4, drop_path=0.0, init_value=1e-6, gnconv=gnconv

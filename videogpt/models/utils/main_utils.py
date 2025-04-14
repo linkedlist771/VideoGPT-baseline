@@ -17,39 +17,41 @@ from .config_utils import Config
 def collect_env():
     """Collect the information of the running environments."""
     env_info = {}
-    env_info['sys.platform'] = sys.platform
-    env_info['Python'] = sys.version.replace('\n', '')
+    env_info["sys.platform"] = sys.platform
+    env_info["Python"] = sys.version.replace("\n", "")
 
     cuda_available = torch.cuda.is_available()
-    env_info['CUDA available'] = cuda_available
+    env_info["CUDA available"] = cuda_available
 
     if cuda_available:
         from torch.utils.cpp_extension import CUDA_HOME
-        env_info['CUDA_HOME'] = CUDA_HOME
+
+        env_info["CUDA_HOME"] = CUDA_HOME
 
         if CUDA_HOME is not None and os.path.isdir(CUDA_HOME):
             try:
-                nvcc = os.path.join(CUDA_HOME, 'bin/nvcc')
+                nvcc = os.path.join(CUDA_HOME, "bin/nvcc")
                 nvcc = subprocess.check_output(
-                    '"{}" -V | tail -n1'.format(nvcc), shell=True)
-                nvcc = nvcc.decode('utf-8').strip()
+                    '"{}" -V | tail -n1'.format(nvcc), shell=True
+                )
+                nvcc = nvcc.decode("utf-8").strip()
             except subprocess.SubprocessError:
-                nvcc = 'Not Available'
-            env_info['NVCC'] = nvcc
+                nvcc = "Not Available"
+            env_info["NVCC"] = nvcc
 
         devices = defaultdict(list)
         for k in range(torch.cuda.device_count()):
             devices[torch.cuda.get_device_name(k)].append(str(k))
         for name, devids in devices.items():
-            env_info['GPU ' + ','.join(devids)] = name
+            env_info["GPU " + ",".join(devids)] = name
 
-    gcc = subprocess.check_output('gcc --version | head -n1', shell=True)
-    gcc = gcc.decode('utf-8').strip()
-    env_info['GCC'] = gcc
+    gcc = subprocess.check_output("gcc --version | head -n1", shell=True)
+    gcc = gcc.decode("utf-8").strip()
+    env_info["GCC"] = gcc
 
-    env_info['PyTorch'] = torch.__version__
-    env_info['PyTorch compiling details'] = torch.__config__.show()
-    env_info['TorchVision'] = torchvision.__version__
+    env_info["PyTorch"] = torch.__version__
+    env_info["PyTorch compiling details"] = torch.__config__.show()
+    env_info["TorchVision"] = torchvision.__version__
     # env_info['OpenCV'] = cv2.__version__
 
     # env_info['openstl'] = openstl.__version__
@@ -61,15 +63,16 @@ def print_log(message):
     print(message)
     logging.info(message)
 
+
 def get_dataset():
     raise NotImplementedError
 
 
 def output_namespace(namespace):
     configs = namespace.__dict__
-    message = ''
+    message = ""
     for k, v in configs.items():
-        message += '\n' + k + ': \t' + str(v) + '\t'
+        message += "\n" + k + ": \t" + str(v) + "\t"
     return message
 
 
@@ -80,9 +83,7 @@ def check_dir(path):
     return path
 
 
-
 def measure_throughput(model, input_dummy):
-
     def get_batch_size(H, W):
         max_side = max(H, W)
         if max_side >= 128:
@@ -107,7 +108,9 @@ def measure_throughput(model, input_dummy):
     total_time = 0
     with torch.no_grad():
         for _ in range(repetitions):
-            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
+                enable_timing=True
+            )
             starter.record()
             if isinstance(input_dummy, tuple):
                 _ = model(*input_dummy)
@@ -121,15 +124,15 @@ def measure_throughput(model, input_dummy):
     return Throughput
 
 
-def load_config(filename:str = None):
+def load_config(filename: str = None):
     """load and print config"""
-    print('loading config from ' + filename + ' ...')
+    print("loading config from " + filename + " ...")
     try:
         configfile = Config(filename=filename)
         config = configfile._cfg_dict
     except (FileNotFoundError, IOError) as e:
         config = dict()
-        print('warning: fail to load the config!')
+        print("warning: fail to load the config!")
         print(f"error: \n{e}")
     return config
 
@@ -140,7 +143,7 @@ def update_config(args, config, exclude_keys=list()):
     for k in config.keys():
         if args.get(k, False):
             if args[k] != config[k] and k not in exclude_keys and args[k] is not None:
-                print(f'overwrite config key -- {k}: {config[k]} -> {args[k]}')
+                print(f"overwrite config key -- {k}: {config[k]} -> {args[k]}")
             else:
                 args[k] = config[k]
         else:
@@ -162,7 +165,8 @@ def weights_to_cpu(state_dict: OrderedDict) -> OrderedDict:
         state_dict_cpu[key] = val.cpu()
     # Keep metadata in state_dict
     state_dict_cpu._metadata = getattr(  # type: ignore
-        state_dict, '_metadata', OrderedDict())
+        state_dict, "_metadata", OrderedDict()
+    )
     return state_dict_cpu
 
 

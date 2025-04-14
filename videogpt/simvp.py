@@ -39,7 +39,7 @@ class VideoSimVP(pl.LightningModule):
         # Create SimVP model for latent prediction
         self.simvp = SimVP_Model(
             in_shape=(
-                args.n_down_sample_cond_frames, # not the cond frames, but the downsampled
+                args.n_down_sample_cond_frames,  # not the cond frames, but the downsampled
                 self.vqvae.embedding_dim,
                 self.latent_shape[1],
                 self.latent_shape[2],
@@ -105,26 +105,27 @@ class VideoSimVP(pl.LightningModule):
     #
     #     return recon_loss
 
-
-
-
     def training_step(self, batch, batch_idx):
         self.vqvae.eval()
-        x = batch['video']
+        x = batch["video"]
         # self.args.n_cond_frames is the input size and the output size
         # no matter what the predicted size.
         # for this model, it only takes in the same size of the input and the ouput
         # torch.Size([2, 3, 8, 128, 128])
 
-        batch_x = x[:, :, :self.args.n_cond_frames, :, :]
-        batch_y = x[:, :, self.args.n_cond_frames:, :, :]
+        batch_x = x[:, :, : self.args.n_cond_frames, :, :]
+        batch_y = x[:, :, self.args.n_cond_frames :, :, :]
         with torch.no_grad():
             # torch.Size([2, 2, 32, 32]),  torch.Size([2, 256, 2, 32, 32])
-            encoding_x, embedding_x = self.vqvae.encode(batch_x, include_embeddings=True)
+            encoding_x, embedding_x = self.vqvae.encode(
+                batch_x, include_embeddings=True
+            )
             # # torch.Size([2, 2, 32, 32, 256])
             embedding_x = shift_dim(embedding_x, 1, -1)
 
-            encoding_y, embedding_y = self.vqvae.encode(batch_y, include_embeddings=True)
+            encoding_y, embedding_y = self.vqvae.encode(
+                batch_y, include_embeddings=True
+            )
             embedding_y = shift_dim(embedding_y, 1, -1)
 
         predicted_y = self.forward(embedding_x)
@@ -132,8 +133,6 @@ class VideoSimVP(pl.LightningModule):
         # dx = shift_dim(embedding_x, 1, -1)
         # loss, _ = self(x, targets)
         return loss
-
-
 
     # for the forward, it takes in the self.args.n_cond_frames frames and predcited the
     # same size of the output.
@@ -161,38 +160,36 @@ class VideoSimVP(pl.LightningModule):
         #     # Reshape for VQ-VAE encoding
         #     B, C, T, H, W = x.shape
         #     x_flat = x.reshape(B * T, C, H, W)
-            #
-            # # Get encodings and embeddings from VQ-VAE
-            # encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
-            #
-            # # Reshape back to batch form
-            # embeddings = embeddings.reshape(
-            #     B, T, -1, self.latent_shape[1], self.latent_shape[2]
-            # )
-            # encodings = encodings.reshape(B, T, *self.latent_shape)
+        #
+        # # Get encodings and embeddings from VQ-VAE
+        # encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
+        #
+        # # Reshape back to batch form
+        # embeddings = embeddings.reshape(
+        #     B, T, -1, self.latent_shape[1], self.latent_shape[2]
+        # )
+        # encodings = encodings.reshape(B, T, *self.latent_shape)
 
-            #
-            # # Generate predictions in chunks
-            # for _ in range(d):
-            #     cur_pred = self.simvp(cur_frames)
-            #     pred_embeddings.append(cur_pred)
-            #     cur_frames = cur_pred  # Use predictions as next input
-            #
-            # # Handle remaining frames if needed
-            # if m > 0:
-            #     cur_pred = self.simvp(cur_frames)
-            #     pred_embeddings.append(cur_pred[:, :m])
+        #
+        # # Generate predictions in chunks
+        # for _ in range(d):
+        #     cur_pred = self.simvp(cur_frames)
+        #     pred_embeddings.append(cur_pred)
+        #     cur_frames = cur_pred  # Use predictions as next input
+        #
+        # # Handle remaining frames if needed
+        # if m > 0:
+        #     cur_pred = self.simvp(cur_frames)
+        #     pred_embeddings.append(cur_pred[:, :m])
 
-            # # Concatenate all predictions
-            # simvp_out = torch.cat(pred_embeddings, dim=1)
+        # # Concatenate all predictions
+        # simvp_out = torch.cat(pred_embeddings, dim=1)
 
         # Return the predicted embeddings and the target encodings
-
 
     def validation_step(self, batch, batch_idx):
         loss = self.training_step(batch, batch_idx)
         self.log("val/loss", loss, prog_bar=True)
-
 
     def sample(self, n, batch=None):
         """Generate new video samples."""
@@ -288,8 +285,13 @@ class VideoSimVP(pl.LightningModule):
         )
 
         # SimVP hyperparameters
-        parser.add_argument("--n_down_sample_cond_frames", type=int, default=2, help="number of downsampled frames"
-                                                                                     "downsampled by vqvae, will be input into simvp")
+        parser.add_argument(
+            "--n_down_sample_cond_frames",
+            type=int,
+            default=2,
+            help="number of downsampled frames"
+            "downsampled by vqvae, will be input into simvp",
+        )
         parser.add_argument("--hid_S", type=int, default=64)
         parser.add_argument("--hid_T", type=int, default=512)
         parser.add_argument("--N_S", type=int, default=4)

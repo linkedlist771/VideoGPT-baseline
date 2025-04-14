@@ -174,7 +174,7 @@ class RRDBEncoder(nn.Module):
         for i in range(self.scale_num - 2):
             pre_downsample_block_list.append(
                 ResBlock(
-                    hid_S * (2 ** i),
+                    hid_S * (2**i),
                     hid_S * (2 ** (i + 1)),
                     downsample=True,
                     factor=downsample_ratio[i],
@@ -221,7 +221,7 @@ class filter_block(nn.Module):
         super(filter_block, self).__init__()
         self.filter_block = []
         high_scale = len(downsample_scale) - 1
-        feat_len = hid_S * (2 ** high_scale)
+        feat_len = hid_S * (2**high_scale)
         self.mat_size = mat_size
         self.filter_block.append(
             nn.Sequential(
@@ -237,7 +237,7 @@ class filter_block(nn.Module):
             )
         )
         low_scale = high_scale + 1
-        feat_len = hid_S * (2 ** low_scale)
+        feat_len = hid_S * (2**low_scale)
         self.filter_block.append(
             nn.Sequential(
                 nn.Conv2d(feat_len, hid_S * 2, kernel_size=3, padding=1),
@@ -363,7 +363,8 @@ class Compose(nn.Module):
         # only test single motion
         if scale > 1:  # if hw_cur != hw_target, only use the last sim matrix
             feats = feats[
-                :, -1:,
+                :,
+                -1:,
             ]
             sim_matrix = sim_matrix[:, -1:]
             T = 1
@@ -539,7 +540,7 @@ class RRDBDecoder(nn.Module):
         out_channel = C * 4
 
         self.upsample_block_low2high = Up(
-            in_channels=hid_S * (2 ** self.scale_num),
+            in_channels=hid_S * (2**self.scale_num),
             out_channels=hid_S * (2 ** (self.scale_num - 1)),
             bilinear=False,
             scale=downsample_scale[-1],
@@ -558,7 +559,7 @@ class RRDBDecoder(nn.Module):
             upsample_block_list.append(
                 Up(
                     in_channels=hid_S * (2 ** (i + 1)),
-                    out_channels=hid_S * (2 ** i),
+                    out_channels=hid_S * (2**i),
                     bilinear=False,
                     scale=downsample_scale[i],
                     skip=skip,
@@ -571,7 +572,6 @@ class RRDBDecoder(nn.Module):
         self.outc = nn.Conv2d(hid_S, out_channel, kernel_size=1)
 
     def forward(self, in_feat):
-
         x = self.upsample_block_low2high(in_feat[-1], in_feat[-2])
         for i in range(self.scale_num - 1):
             x = self.upsample_block[i](x, in_feat[-i - 3])
@@ -595,7 +595,8 @@ class ImageEnhancer(nn.Module):
         self.outconv = nn.Conv2d(hid_S, C_in, kernel_size=1)
 
     def forward(
-        self, x,
+        self,
+        x,
     ):
         feat = self.model(x)
         out = self.outconv(feat)

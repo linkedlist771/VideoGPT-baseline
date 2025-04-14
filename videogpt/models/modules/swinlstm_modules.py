@@ -56,7 +56,7 @@ class SwinLSTMCell(nn.Module):
     def forward(self, xt, hidden_states):
         """
         Args:
-        xt: input for t period 
+        xt: input for t period
         hidden_states: [hx, cx] hidden_states for t-1 period
         """
         if hidden_states is None:
@@ -185,7 +185,7 @@ class STB(SwinTransformerBlock):
 
 
 class PatchInflated(nn.Module):
-    r""" Tensor to Patch Inflating
+    r"""Tensor to Patch Inflating
 
     Args:
         in_chans (int): Number of input image channels.
@@ -232,7 +232,7 @@ class PatchInflated(nn.Module):
 
 
 class PatchExpanding(nn.Module):
-    r""" Patch Expanding Layer.
+    r"""Patch Expanding Layer.
 
     Args:
         input_resolution (tuple[int]): Resolution of input feature.
@@ -396,17 +396,17 @@ class DownSample(nn.Module):
         for i_layer in range(self.num_layers):
             downsample = PatchMerging(
                 input_resolution=(
-                    patches_resolution[0] // (2 ** i_layer),
-                    patches_resolution[1] // (2 ** i_layer),
+                    patches_resolution[0] // (2**i_layer),
+                    patches_resolution[1] // (2**i_layer),
                 ),
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 2**i_layer),
             )
 
             layer = SwinLSTMCell(
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 2**i_layer),
                 input_resolution=(
-                    patches_resolution[0] // (2 ** i_layer),
-                    patches_resolution[1] // (2 ** i_layer),
+                    patches_resolution[0] // (2**i_layer),
+                    patches_resolution[1] // (2**i_layer),
                 ),
                 depth=depths_downsample[i_layer],
                 num_heads=num_heads[i_layer],
@@ -429,7 +429,6 @@ class DownSample(nn.Module):
             self.downsample.append(downsample)
 
     def forward(self, x, y):
-
         x = self.patch_embed(x)
 
         hidden_states_down = []

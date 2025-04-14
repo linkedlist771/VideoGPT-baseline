@@ -1,54 +1,87 @@
 import argparse
 import datetime
+import os
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from videogpt import VideoSimVP, VideoData
+from videogpt import VideoData, VideoSimVP
 
 
 def main():
     pl.seed_everything(1234)
-
-    # Get current date for checkpoint directory
     current_date = datetime.datetime.now()
+
     month_day = f"{current_date.month:02d}_{current_date.day:02d}"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--data_path", type=str, default="/home/wilson/data/datasets/bair.hdf5"
-    )
+    # Add basic arguments
+    parser.add_argument("--data_path", type=str, required=True)
+    parser.add_argument("--resolution", type=int, default=128)
     parser.add_argument("--sequence_length", type=int, default=16)
-    parser.add_argument("--resolution", type=int, default=64)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=8)
-    parser.add_argument("--gpus", type=int, default=1)
-    parser.add_argument("--max_steps", type=int, default=50000)
+    # Add training arguments that were previously in Trainer.add_argparse_args
+    parser.add_argument("--accelerator", type=str, default="gpu")
+    parser.add_argument("--gpus", type=int, default=1)  # for backward compatibility
+    parser.add_argument("--max_epochs", type=int, default=100)
+    parser.add_argument("--precision", type=int, default=32)
     parser.add_argument("--gradient_clip_val", type=float, default=1.0)
-    parser.add_argument("--precision", type=int, default=16)
+    parser.add_argument("--accumulate_grad_batches", type=int, default=1)
+    # SimVP hyperparameters
+    parser.add_argument(
+        "--vqvae",
+        type=str,
+        default="kinetics_stride4x4x4",
+        help="path to vqvae ckpt, or model name to download pretrained",
+    )
+    parser.add_argument("--n_cond_frames", type=int, default=1)
+    parser.add_argument(
+        "--n_pred_frames",
+        type=int,
+        default=1,
+        help="number of frames to predict (default: same as n_cond_frames)",
+    )
+    parser.add_argument(
+        "--n_down_sample_cond_frames",
+        type=int,
+        default=2,
+        help="number of downsampled frames"
+        "downsampled by vqvae, will be input into simvp",
+    )
+    parser.add_argument("--hid_S", type=int, default=64)
+    parser.add_argument("--hid_T", type=int, default=512)
+    parser.add_argument("--N_S", type=int, default=4)
+    parser.add_argument("--N_T", type=int, default=8)
+    parser.add_argument("--model_type", type=str, default="gSTA")
+    parser.add_argument("--mlp_ratio", type=float, default=8.0)
+    parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--drop_path", type=float, default=0.1)
+
+    # Add save directory argument
     parser.add_argument(
         "--save_dir",
         type=str,
-        default=f"checkpoints/simvp/{month_day}",
-        help="Directory to save SimVP checkpoints",
+        default=f"checkpoints/videogpt/{month_day}",
+        help="Directory to save VideoSimVP checkpoints",
     )
-
-    # Add VideoSimVP specific arguments
-    parser = VideoSimVP.add_model_specific_args(parser)
 
     args = parser.parse_args()
 
     data = VideoData(args)
     # pre-make relevant cached files if necessary
     data.train_dataloader()
-    data.val_dataloader()
+    data.test_dataloader()
+
+    args.class_cond_dim = data.n_classes if args.class_cond else None
     model = VideoSimVP(args)
 
     callbacks = []
+    # 只保存最后三个
     callbacks.append(
         ModelCheckpoint(
             dirpath=args.save_dir,
-            filename="simvp_{epoch:02d}",
+            filename="videosimvp_{epoch:02d}",
             monitor="val/loss",
             mode="min",
             save_last=True,
@@ -56,46 +89,21 @@ def main():
         )
     )
 
-    trainer_kwargs = {
-        "max_steps": args.max_steps,
-        "accelerator": "gpu" if args.gpus > 0 else "cpu",
-        "devices": args.gpus if args.gpus > 0 else None,
-        "callbacks": callbacks,
-        "gradient_clip_val": args.gradient_clip_val,
-        "precision": args.precision,
-        "val_check_interval": 0.1,  # validate every 10% of training steps
-        "log_every_n_steps": 10,
-    }
+    kwargs = dict()
+    trainer = pl.Trainer(
+        accelerator=args.accelerator,
+        # devices=args.devices,
+        max_epochs=args.max_epochs,
+        precision=args.precision,
+        devices=1,
+        gradient_clip_val=args.gradient_clip_val,
+        accumulate_grad_batches=args.accumulate_grad_batches,
+        callbacks=callbacks,
+        max_steps=args.max_steps,
+        **kwargs,
+    )
 
-    if args.gpus > 1:
-        trainer_kwargs.update(
-            {"strategy": "ddp",}
-        )
-
-    trainer = pl.Trainer(**trainer_kwargs)
     trainer.fit(model, data)
-
-    trainer.save_checkpoint(f"{args.save_dir}/simvp_final.ckpt")
-
-    # Generate and save sample predictions
-    import os
-    import torch
-    from torchvision.utils import save_image
-
-    os.makedirs(f"{args.save_dir}/samples", exist_ok=True)
-    model.eval()
-
-    with torch.no_grad():
-        batch = next(iter(data.val_dataloader()))
-        samples = model.sample(4, batch)
-
-        # Reshape to sequence of frames
-        B, T, C, H, W = samples.shape
-        samples = samples.reshape(B * T, C, H, W)
-
-        # Save as grid
-        save_image(samples, f"{args.save_dir}/samples/simvp_samples.png", nrow=T)
-        print(f"Saved samples to {args.save_dir}/samples/simvp_samples.png")
 
 
 if __name__ == "__main__":
