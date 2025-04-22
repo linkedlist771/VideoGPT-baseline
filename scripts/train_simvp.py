@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--accelerator", type=str, default="gpu")
     parser.add_argument("--gpus", type=int, default=1)  # for backward compatibility
     parser.add_argument("--max_epochs", type=int, default=100)
+    parser.add_argument("--max_steps", type=int, default=10000)
     parser.add_argument("--precision", type=int, default=32)
     parser.add_argument("--gradient_clip_val", type=float, default=1.0)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1)
@@ -58,11 +59,12 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--drop_path", type=float, default=0.1)
 
+
     # Add save directory argument
     parser.add_argument(
         "--save_dir",
         type=str,
-        default=f"checkpoints/videogpt/{month_day}",
+        default=f"checkpoints/videosimvp/{month_day}",
         help="Directory to save VideoSimVP checkpoints",
     )
 
@@ -73,7 +75,6 @@ def main():
     data.train_dataloader()
     data.test_dataloader()
 
-    args.class_cond_dim = data.n_classes if args.class_cond else None
     model = VideoSimVP(args)
 
     callbacks = []
@@ -92,7 +93,6 @@ def main():
     kwargs = dict()
     trainer = pl.Trainer(
         accelerator=args.accelerator,
-        # devices=args.devices,
         max_epochs=args.max_epochs,
         precision=args.precision,
         devices=1,

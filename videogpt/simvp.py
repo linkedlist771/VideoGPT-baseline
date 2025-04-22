@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
-from docutils.nodes import target
 from tqdm import tqdm
 
 from .models.simvp_model import SimVP_Model
@@ -129,9 +128,17 @@ class VideoSimVP(pl.LightningModule):
             embedding_y = shift_dim(embedding_y, 1, -1)
 
         predicted_y = self.forward(embedding_x)
+        predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
+        # from loguru import logger
+        # logger.debug(f"predicted_y shape\n{predicted_y.shape}")
+        # logger.debug(f"embedding_y shape\n{embedding_y.shape}")
+        # 2025-04-15 05:55:42.846 | DEBUG    | videogpt.simvp:training_step:132 - predicted_y shape
+        # torch.Size([8, 2, 256, 32, 32])
+        # 2025-04-15 05:55:42.846 | DEBUG    | videogpt.simvp:training_step:133 - embedding_y shape
+        # torch.Size([8, 2, 32, 32, 256])
+
         loss = self.criterion(predicted_y, embedding_y)
-        # dx = shift_dim(embedding_x, 1, -1)
-        # loss, _ = self(x, targets)
+        self.log("train/loss", loss, prog_bar=True)
         return loss
 
     # for the forward, it takes in the self.args.n_cond_frames frames and predcited the
@@ -193,68 +200,44 @@ class VideoSimVP(pl.LightningModule):
 
     def sample(self, n, batch=None):
         """Generate new video samples."""
-        device = self.simvp.enc.enc[0].enc[0].weight.device
 
         # We need a batch of conditioning frames
         assert batch is not None, "Batch must be provided for conditioning"
-        video = batch["video"]
-
+        x = batch["video"]
+        batch_x = x[:, :, : self.args.n_cond_frames, :, :]
+        batch_y = x[:, :, self.args.n_cond_frames :, :, :]
         with torch.no_grad():
-            # Get conditioning frames
-            cond_frames = video[:n, :, : self.args.n_cond_frames]
-            B, C, T, H, W = cond_frames.shape
-            # Encode conditioning frames with VQ-VAE
-            cond_flat = cond_frames.reshape(B * T, C, H, W)
-            _, cond_embeddings = self.vqvae.encode(cond_flat, include_embeddings=True)
-            cond_embeddings = cond_embeddings.reshape(
-                B, T, -1, self.latent_shape[1], self.latent_shape[2]
+            encoding_x, embedding_x = self.vqvae.encode(
+                batch_x, include_embeddings=True
             )
-
-            # Get prediction length
-            if (
-                hasattr(self.args, "n_pred_frames")
-                and self.args.n_pred_frames is not None
-            ):
-                n_pred_frames = self.args.n_pred_frames
-            else:
-                n_pred_frames = self.args.n_cond_frames
-
-            # Handle different prediction length scenarios
-            if n_pred_frames <= self.args.n_cond_frames:
-                # Standard case
-                predicted_embeddings = self.simvp(cond_embeddings)
-                if n_pred_frames < self.args.n_cond_frames:
-                    predicted_embeddings = predicted_embeddings[:, :n_pred_frames]
-            else:
-                # Autoregressive case for longer sequences
-                pred_embeddings = []
-                cur_frames = cond_embeddings.clone()
-
-                # Calculate iterations needed
-                d = n_pred_frames // self.args.n_cond_frames
-                m = n_pred_frames % self.args.n_cond_frames
-
-                # Generate predictions in chunks
-                for _ in range(d):
-                    cur_pred = self.simvp(cur_frames)
-                    pred_embeddings.append(cur_pred)
-                    cur_frames = cur_pred
-
-                # Handle remaining frames
-                if m > 0:
-                    cur_pred = self.simvp(cur_frames)
-                    pred_embeddings.append(cur_pred[:, :m])
-
-                # Concatenate all predictions
-                predicted_embeddings = torch.cat(pred_embeddings, dim=1)
-
-            # Decode the predicted embeddings back to pixel space
-            B, T, C_emb, H_emb, W_emb = predicted_embeddings.shape
-            pred_flat = predicted_embeddings.reshape(B * T, C_emb, H_emb, W_emb)
-            samples = self.vqvae.decode(pred_flat)
-
-            # Reshape to video format
-            samples = samples.reshape(B, T, *samples.shape[1:])
+            embedding_x = shift_dim(embedding_x, 1, -1)
+            predicted_y = self.forward(embedding_x)
+            predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
+            # here you should calculate the distance from the predicted_y in the
+            # codebook and retrieved
+            
+            # Flatten predicted_y for distance calculation with codebook
+            B, T, H, W, C = predicted_y.shape
+            predicted_flat = predicted_y.reshape(-1, C)
+            
+            # Get the codebook
+            codebook = self.vqvae.codebook.embeddings
+            
+            # Calculate distances using squared Euclidean distance
+            distances = (
+                (predicted_flat**2).sum(dim=1, keepdim=True)
+                - 2 * predicted_flat @ codebook.t() 
+                + (codebook.t()**2).sum(dim=0, keepdim=True)
+            )
+            
+            # Find nearest codebook entries
+            encoding_indices = torch.argmin(distances, dim=1)
+            
+            # Reshape encoding indices back to expected format for decode
+            encoding_indices = encoding_indices.view(B, T, H, W)
+            
+            # Decode requires indices in format expected by VQVAE
+            samples = self.vqvae.decode(encoding_indices)
             samples = torch.clamp(samples, -0.5, 0.5) + 0.5
 
         return samples  # BCTHW in [0, 1]
