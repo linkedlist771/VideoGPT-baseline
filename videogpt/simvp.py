@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
+import clip
 
 from .models.simvp_model import SimVP_Model
 from .resnet import resnet34
@@ -33,6 +34,8 @@ class VideoSimVP(pl.LightningModule):
         self.vqvae.eval()
         self.criterion = nn.MSELoss()
 
+        self.load_clip(args.clip)
+
         # Get the latent shape from VQ-VAE
         self.latent_shape = self.vqvae.latent_shape
         # Create SimVP model for latent prediction
@@ -55,12 +58,43 @@ class VideoSimVP(pl.LightningModule):
 
         # caches for faster processing
         self.frame_cond_cache = None
+        self.labels_features_cache = None
+        
 
         self.save_hyperparameters()
+
+    def encode_labels(self, labels: list[str]):
+        text_tokens = clip.tokenize(labels).to("cuda")
+
+        # now just run:
+        # with torch.no_grad():   # if you’re only doing inference
+        text_features = self.clip.encode_text(text_tokens)
+        return text_features
+
+    def load_clip(self, path):
+        
+        model, _preprocess = clip.load(path, device="cuda")
+        self.clip = model
+
+        # self.clip.train()
+        # # freeze vision if you like:
+        # for p in self.clip.visual.parameters():
+        #     p.requires_grad_(False)
+        # # not in eval mode
+        self.clip = model.eval() # don't finetune clip
+        for p in self.clip.parameters():
+            p.requires_grad_(False)
 
     def training_step(self, batch, batch_idx):
         self.vqvae.eval()
         x = batch["video"]
+        labels = batch["label"]
+        # from loguru import logger
+        # logger.debug(f"label: {label}")
+        # this is a list, we need clip to turns it into tensor
+        # ing_step:66 - label: ['This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 900.0 sccm, NH3_flow: 750.0 sccm, N2O_flow: 750.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 450.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 100.0 W, temperature: 775.0 K, voltage: 10.0 V.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 260.0 W, temperature: 600.0 K, voltage: 20.0 V.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 450.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 150.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1500.0 sccm, N2_flow: 2380.0 sccm.']
+        labels_features = self.encode_labels(labels)
+        
         # self.args.n_cond_frames is the input size and the output size
         # no matter what the predicted size.
         # for this model, it only takes in the same size of the input and the ouput
@@ -181,6 +215,9 @@ class VideoSimVP(pl.LightningModule):
             default="kinetics_stride4x4x4",
             help="path to vqvae ckpt, or model name to download pretrained",
         )
+        parser.add_argument("--clip", type=str, required=True, 
+                            help="path to openai clip model")
+
         parser.add_argument("--n_cond_frames", type=int, default=1)
         parser.add_argument(
             "--n_pred_frames",

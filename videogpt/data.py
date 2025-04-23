@@ -15,7 +15,13 @@ import torch.nn.functional as F
 import torch.utils.data as data
 from loguru import logger
 from torchvision.datasets.video_utils import VideoClips
-
+from pathlib import Path
+import json
+current_dir = Path(__file__).parent
+ROOT = current_dir.parent
+resources_dir = ROOT / "resources"
+labels_json = resources_dir / "labels.json"
+label_maps = json.load(open(labels_json))
 
 class VideoDataset(data.Dataset):
     """Generic dataset for videos files stored in folders
@@ -71,15 +77,23 @@ class VideoDataset(data.Dataset):
     def __getitem__(self, idx):
         resolution = self.resolution
         video, _, _, idx = self._clips.get_clip(idx)
+        # label_maps
 
-        class_name = get_parent_dir(self._clips.video_paths[idx])
-        label = self.class_to_label[class_name]
+        # class_name = get_parent_dir(self._clips.video_paths[idx])
+        # label = self.class_to_label[class_name]
+        video_name = get_video_file_name(self._clips.video_paths[idx])
+        label = label_maps[video_name]
+
         return dict(video=preprocess(video, resolution), label=label)
 
 
 def get_parent_dir(path):
     return osp.basename(osp.dirname(path))
 
+def get_video_file_name(path):
+    # 获取视频文件名 such as /data/sub.mp4 => sub
+    filename = osp.basename(path)
+    return osp.splitext(filename)[0]
 
 def preprocess(video, resolution, sequence_length=None):
     # video: THWC, {0, ..., 255}
