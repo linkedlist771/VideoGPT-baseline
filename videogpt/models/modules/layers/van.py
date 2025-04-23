@@ -2,9 +2,9 @@
 # https://github.com/Visual-Attention-Network/VAN-Classification
 
 import math
+
 import torch
 import torch.nn as nn
-
 from timm.layers import DropPath, trunc_normal_
 
 

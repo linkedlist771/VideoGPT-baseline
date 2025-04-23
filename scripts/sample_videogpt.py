@@ -47,9 +47,9 @@ for idx, batch in enumerate(tqdm(loader)):
     batch = {k: v.cuda() for k, v in batch.items()}
     real_videos = batch["video"]
     real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
-    samples = gpt.sample(n, batch) # for simvp it is a littel bit different
+    samples = gpt.sample(n, batch)  # for simvp it is a littel bit different
     # the batch has both the input and the target, we should only use
-    # the target and the predicted to eval. 
+    # the target and the predicted to eval.
     if use_image:
         # 为这个批次创建子目录
         real_batch_dir = real_images / f"batch_{idx}"

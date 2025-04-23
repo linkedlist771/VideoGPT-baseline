@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .modules import SpatioTemporalLSTMCell, MIMBlock, MIMN
+from .modules import MIMN, MIMBlock, SpatioTemporalLSTMCell
 
 
 class MIM_Model(nn.Module):

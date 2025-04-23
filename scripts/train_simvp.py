@@ -59,7 +59,6 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--drop_path", type=float, default=0.1)
 
-
     # Add save directory argument
     parser.add_argument(
         "--save_dir",

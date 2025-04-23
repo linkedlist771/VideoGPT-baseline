@@ -36,7 +36,7 @@ def get_initial_states(
 
     for stp in states_to_pass:
         for l in range(num_layer_to_pass[stp]):
-            downsample_factor = 2**l
+            downsample_factor = 2 ** l
             row = init_height // downsample_factor
             col = init_width // downsample_factor
             if stp in ["R", "C"]:

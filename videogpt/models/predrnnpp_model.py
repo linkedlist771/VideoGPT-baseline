@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .modules import CausalLSTMCell, GHU
+from .modules import GHU, CausalLSTMCell
 
 
 class PredRNNpp_Model(nn.Module):

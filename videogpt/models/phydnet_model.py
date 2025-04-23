@@ -1,8 +1,9 @@
 import random
+
 import torch
 from torch import nn
 
-from .modules import PhyCell, PhyD_ConvLSTM, PhyD_EncoderRNN, K2M
+from .modules import K2M, PhyCell, PhyD_ConvLSTM, PhyD_EncoderRNN
 
 
 class PhyDNet_Model(nn.Module):

@@ -1,9 +1,11 @@
 import json
-import shutil
 import logging
 import os.path as osp
+import shutil
+
 from pytorch_lightning.callbacks import Callback, ModelCheckpoint
-from .main_utils import check_dir, collect_env, print_log, output_namespace
+
+from .main_utils import check_dir, collect_env, output_namespace, print_log
 
 
 class SetupCallback(Callback):

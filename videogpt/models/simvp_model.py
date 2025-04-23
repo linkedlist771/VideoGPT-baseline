@@ -1,22 +1,11 @@
 import torch
 from torch import nn
 
-from .modules import (
-    ConvSC,
-    ConvNeXtSubBlock,
-    ConvMixerSubBlock,
-    GASubBlock,
-    gInception_ST,
-    HorNetSubBlock,
-    MLPMixerSubBlock,
-    MogaSubBlock,
-    PoolFormerSubBlock,
-    SwinSubBlock,
-    UniformerSubBlock,
-    VANSubBlock,
-    ViTSubBlock,
-    TAUSubBlock,
-)
+from .modules import (ConvMixerSubBlock, ConvNeXtSubBlock, ConvSC, GASubBlock,
+                      HorNetSubBlock, MLPMixerSubBlock, MogaSubBlock,
+                      PoolFormerSubBlock, SwinSubBlock, TAUSubBlock,
+                      UniformerSubBlock, VANSubBlock, ViTSubBlock,
+                      gInception_ST)
 
 
 class SimVP_Model(nn.Module):

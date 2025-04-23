@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .modules import DownSample, UpSample, STconvert
+from .modules import DownSample, STconvert, UpSample
 
 
 class SwinLSTM_D_Model(nn.Module):

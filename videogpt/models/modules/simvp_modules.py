@@ -1,27 +1,17 @@
 import math
+
 import torch
 import torch.nn as nn
-
 from timm.layers import DropPath, trunc_normal_
 from timm.models.convnext import ConvNeXtBlock
 from timm.models.mlp_mixer import MixerBlock
-from timm.models.swin_transformer import (
-    SwinTransformerBlock,
-    window_partition,
-    window_reverse,
-)
+from timm.models.swin_transformer import (SwinTransformerBlock,
+                                          window_partition, window_reverse)
 from timm.models.vision_transformer import Block as ViTBlock
 
-from .layers import (
-    HorBlock,
-    ChannelAggregationFFN,
-    MultiOrderGatedAggregation,
-    PoolFormerBlock,
-    CBlock,
-    SABlock,
-    MixMlp,
-    VANBlock,
-)
+from .layers import (CBlock, ChannelAggregationFFN, HorBlock, MixMlp,
+                     MultiOrderGatedAggregation, PoolFormerBlock, SABlock,
+                     VANBlock)
 
 
 class BasicConv2d(nn.Module):

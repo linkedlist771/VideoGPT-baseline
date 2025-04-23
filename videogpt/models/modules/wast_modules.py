@@ -1,10 +1,12 @@
-import torch, pywt
-import torch.nn as nn
-from einops import rearrange
 from functools import partial
 from itertools import accumulate
+
+import pywt
+import torch
+import torch.nn as nn
+from einops import rearrange
 from timm.layers import DropPath, activations
-from timm.models._efficientnet_blocks import SqueezeExcite, InvertedResidual
+from timm.models._efficientnet_blocks import InvertedResidual, SqueezeExcite
 
 # version adaptation for PyTorch > 1.7.1
 IS_HIGH_VERSION = tuple(map(int, torch.__version__.split("+")[0].split("."))) > (

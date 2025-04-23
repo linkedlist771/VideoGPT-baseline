@@ -1,10 +1,10 @@
 # Copyright (c) CAIRI AI Lab. All rights reserved
 
-import os
 import logging
+import os
 import subprocess
 import sys
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from typing import Tuple
 
 import torch
@@ -108,8 +108,9 @@ def measure_throughput(model, input_dummy):
     total_time = 0
     with torch.no_grad():
         for _ in range(repetitions):
-            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
-                enable_timing=True
+            starter, ender = (
+                torch.cuda.Event(enable_timing=True),
+                torch.cuda.Event(enable_timing=True),
             )
             starter.record()
             if isinstance(input_dummy, tuple):

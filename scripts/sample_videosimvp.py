@@ -38,10 +38,10 @@ for idx, batch in enumerate(tqdm(loader)):
     batch = {k: v.cuda() for k, v in batch.items()}
     real_videos = batch["video"]
     real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
-    # size... 
-    samples = gpt.sample(n, batch) # for simvp it is a littel bit different
+    # size...
+    samples = gpt.sample(n, batch)  # for simvp it is a littel bit different
     # the batch has both the input and the target, we should only use
-    # the target and the predicted to eval. 
+    # the target and the predicted to eval.
     if use_image:
         # 为这个批次创建子目录
         real_batch_dir = real_images / f"batch_{idx}"
@@ -67,10 +67,12 @@ for idx, batch in enumerate(tqdm(loader)):
                     frame_pil = Image.fromarray(
                         (frame.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
                     )
-                    frame_pil.save(real_batch_dir / f"video_{i}_frame_{(t-skip):03d}.png")
+                    frame_pil.save(
+                        real_batch_dir / f"video_{i}_frame_{(t-skip):03d}.png"
+                    )
         # 保存生成的样本帧
         #        return samples # BCTHW
-        # we just sampled the later part of the predictedc 
+        # we just sampled the later part of the predictedc
         for i in range(samples.size(0)):  # 遍历批次大小
             for t in range(samples.size(2)):  # 遍历时间维度
 

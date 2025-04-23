@@ -1,9 +1,10 @@
+from functools import reduce
+
 import torch
 import torch.nn as nn
 from numpy import *
 from numpy.linalg import *
 from scipy.special import factorial
-from functools import reduce
 
 __all__ = ["M2K", "K2M"]
 
@@ -392,12 +393,7 @@ def _apply_axis_left_dot(x, mats):
     k = x.dim() - 1
     for i in range(k):
         x = tensordot(mats[k - i - 1], x, dim=[1, k])
-    x = x.permute(
-        [
-            k,
-        ]
-        + list(range(k))
-    ).contiguous()
+    x = x.permute([k,] + list(range(k))).contiguous()
     x = x.view(sizex)
     return x
 
@@ -406,12 +402,7 @@ def _apply_axis_right_dot(x, mats):
     assert x.dim() == len(mats) + 1
     sizex = x.size()
     k = x.dim() - 1
-    x = x.permute(
-        list(range(1, k + 1))
-        + [
-            0,
-        ]
-    )
+    x = x.permute(list(range(1, k + 1)) + [0,])
     for i in range(k):
         x = tensordot(x, mats[i], dim=[0, 0])
     x = x.contiguous()
@@ -456,12 +447,7 @@ class _MK(nn.Module):
         if x.dim() == self.dim():
             x = x[newaxis, :]
         x = x.contiguous()
-        x = x.view(
-            [
-                -1,
-            ]
-            + list(x.size()[-self.dim() :])
-        )
+        x = x.view([-1,] + list(x.size()[-self.dim() :]))
         return x
 
     def forward(self):
@@ -537,20 +523,8 @@ def tensordot(a, b, dim):
     else:
         adims = dim[0]
         bdims = dim[1]
-        adims = (
-            [
-                adims,
-            ]
-            if isinstance(adims, int)
-            else adims
-        )
-        bdims = (
-            [
-                bdims,
-            ]
-            if isinstance(bdims, int)
-            else bdims
-        )
+        adims = [adims,] if isinstance(adims, int) else adims
+        bdims = [bdims,] if isinstance(bdims, int) else bdims
         adims_ = set(range(a.dim())).difference(set(adims))
         adims_ = list(adims_)
         adims_.sort()

@@ -58,52 +58,6 @@ class VideoSimVP(pl.LightningModule):
 
         self.save_hyperparameters()
 
-    def get_reconstruction(self, videos):
-        return self.vqvae.decode(self.vqvae.encode(videos))
-
-    # def compute_loss(self, batch):
-    #     """Compute training or validation loss."""
-    #     x = batch["video"]
-    #
-    #     # Forward pass
-    #     pred_embeddings, target_encodings = self(x)
-    #
-    #     # Get prediction length
-    #     if hasattr(self.args, "n_pred_frames") and self.args.n_pred_frames is not None:
-    #         n_pred_frames = self.args.n_pred_frames
-    #     else:
-    #         n_pred_frames = self.args.n_cond_frames
-    #
-    #     # Compute reconstruction loss
-    #     # Get the predicted frames (excluding conditioning frames)
-    #     pred_frames = self.vqvae.decode(pred_embeddings.reshape(-1, *self.latent_shape))
-    #
-    #     # Reshape pred_frames to match video shape
-    #     B = x.shape[0]
-    #     pred_frames = pred_frames.reshape(B, -1, *x.shape[2:])
-    #
-    #     # Get the appropriate target frames based on prediction length
-    #     if n_pred_frames <= self.args.n_cond_frames:
-    #         target_frames = x[
-    #             :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
-    #         ]
-    #     else:
-    #         # For autoregressive prediction, we need frames beyond conditioning
-    #         target_frames = x[
-    #             :, :, self.args.n_cond_frames : self.args.n_cond_frames + n_pred_frames
-    #         ]
-    #         # In case we don't have enough target frames in dataset, truncate prediction
-    #         if target_frames.shape[2] < n_pred_frames:
-    #             pred_frames = pred_frames[:, :, : target_frames.shape[2]]
-    #
-    #     # Flatten for MSE calculation
-    #     pred_frames = pred_frames.reshape(-1, *pred_frames.shape[3:])
-    #     target_frames = target_frames.reshape(-1, *target_frames.shape[3:])
-    #
-    #     recon_loss = F.mse_loss(pred_frames, target_frames)
-    #
-    #     return recon_loss
-
     def training_step(self, batch, batch_idx):
         self.vqvae.eval()
         x = batch["video"]
@@ -162,38 +116,6 @@ class VideoSimVP(pl.LightningModule):
         simvp_out = self.simvp(x)
         return simvp_out
 
-        # Get the latent embeddings from VQ-VAE
-        # with torch.no_grad():
-        #     # Reshape for VQ-VAE encoding
-        #     B, C, T, H, W = x.shape
-        #     x_flat = x.reshape(B * T, C, H, W)
-        #
-        # # Get encodings and embeddings from VQ-VAE
-        # encodings, embeddings = self.vqvae.encode(x_flat, include_embeddings=True)
-        #
-        # # Reshape back to batch form
-        # embeddings = embeddings.reshape(
-        #     B, T, -1, self.latent_shape[1], self.latent_shape[2]
-        # )
-        # encodings = encodings.reshape(B, T, *self.latent_shape)
-
-        #
-        # # Generate predictions in chunks
-        # for _ in range(d):
-        #     cur_pred = self.simvp(cur_frames)
-        #     pred_embeddings.append(cur_pred)
-        #     cur_frames = cur_pred  # Use predictions as next input
-        #
-        # # Handle remaining frames if needed
-        # if m > 0:
-        #     cur_pred = self.simvp(cur_frames)
-        #     pred_embeddings.append(cur_pred[:, :m])
-
-        # # Concatenate all predictions
-        # simvp_out = torch.cat(pred_embeddings, dim=1)
-
-        # Return the predicted embeddings and the target encodings
-
     def validation_step(self, batch, batch_idx):
         loss = self.training_step(batch, batch_idx)
         self.log("val/loss", loss, prog_bar=True)
@@ -215,27 +137,27 @@ class VideoSimVP(pl.LightningModule):
             predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
             # here you should calculate the distance from the predicted_y in the
             # codebook and retrieved
-            
+
             # Flatten predicted_y for distance calculation with codebook
             B, T, H, W, C = predicted_y.shape
             predicted_flat = predicted_y.reshape(-1, C)
-            
+
             # Get the codebook
             codebook = self.vqvae.codebook.embeddings
-            
+
             # Calculate distances using squared Euclidean distance
             distances = (
-                (predicted_flat**2).sum(dim=1, keepdim=True)
-                - 2 * predicted_flat @ codebook.t() 
-                + (codebook.t()**2).sum(dim=0, keepdim=True)
+                (predicted_flat ** 2).sum(dim=1, keepdim=True)
+                - 2 * predicted_flat @ codebook.t()
+                + (codebook.t() ** 2).sum(dim=0, keepdim=True)
             )
-            
+
             # Find nearest codebook entries
             encoding_indices = torch.argmin(distances, dim=1)
-            
+
             # Reshape encoding indices back to expected format for decode
             encoding_indices = encoding_indices.view(B, T, H, W)
-            
+
             # Decode requires indices in format expected by VQVAE
             samples = self.vqvae.decode(encoding_indices)
             samples = torch.clamp(samples, -0.5, 0.5) + 0.5
