@@ -1,6 +1,6 @@
 import argparse
 import os
-
+from pathlib import Path
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -8,8 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
-import clip
-
+# import .clip as clip
+from .clip import clip
 from .models.simvp_model import SimVP_Model
 from .resnet import resnet34
 from .utils import shift_dim
@@ -72,16 +72,17 @@ class VideoSimVP(pl.LightningModule):
         return text_features
 
     def load_clip(self, path):
-        
+        path = Path(path)
         model, _preprocess = clip.load(path, device="cuda")
         self.clip = model
-
+        # we don't need the visual part of the clip, we can release it 
+        # self.clip.visual = None
         # self.clip.train()
         # # freeze vision if you like:
         # for p in self.clip.visual.parameters():
         #     p.requires_grad_(False)
         # # not in eval mode
-        self.clip = model.eval() # don't finetune clip
+        self.clip.eval() # don't finetune clip
         for p in self.clip.parameters():
             p.requires_grad_(False)
 
@@ -90,11 +91,14 @@ class VideoSimVP(pl.LightningModule):
         x = batch["video"]
         labels = batch["label"]
         # from loguru import logger
-        # logger.debug(f"label: {label}")
         # this is a list, we need clip to turns it into tensor
         # ing_step:66 - label: ['This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 900.0 sccm, NH3_flow: 750.0 sccm, N2O_flow: 750.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 450.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 100.0 W, temperature: 775.0 K, voltage: 10.0 V.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 260.0 W, temperature: 600.0 K, voltage: 20.0 V.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 450.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 150.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1500.0 sccm, N2_flow: 2380.0 sccm.']
         labels_features = self.encode_labels(labels)
         
+        # from loguru import logger
+        # logger.debug(f"labels_features shape: {labels_features.shape}")
+        # labels_features shape: torch.Size([8, 512])
+
         # self.args.n_cond_frames is the input size and the output size
         # no matter what the predicted size.
         # for this model, it only takes in the same size of the input and the ouput
