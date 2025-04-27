@@ -75,7 +75,6 @@ for idx, batch in enumerate(tqdm(loader)):
         # we just sampled the later part of the predictedc
         for i in range(samples.size(0)):  # 遍历批次大小
             for t in range(samples.size(2)):  # 遍历时间维度
-
                 frame = samples[i, :, t, :, :]
                 frame_pil = Image.fromarray(
                     (frame.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")

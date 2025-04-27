@@ -66,7 +66,7 @@ class SimVP_Model(nn.Module):
 
         z = embed.view(B, T, C_, H_, W_)
         hid = self.hid(z)
-        hid = hid.reshape(B * T, C_, H_, W_) # 10 x64x*93x126
+        hid = hid.reshape(B * T, C_, H_, W_)  # 10 x64x*93x126
 
         Y = self.dec(hid, skip)  # ship: 10x64x369x501
         Y = Y.reshape(B, T, C, H, W)

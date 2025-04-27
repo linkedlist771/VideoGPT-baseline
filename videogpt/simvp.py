@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -8,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
+
 # import .clip as clip
 from .clip import clip
 from .models.simvp_model import SimVP_Model
@@ -59,7 +61,6 @@ class VideoSimVP(pl.LightningModule):
         # caches for faster processing
         self.frame_cond_cache = None
         self.labels_features_cache = None
-        
 
         self.save_hyperparameters()
 
@@ -75,14 +76,14 @@ class VideoSimVP(pl.LightningModule):
         path = Path(path)
         model, _preprocess = clip.load(path, device="cuda")
         self.clip = model
-        # we don't need the visual part of the clip, we can release it 
+        # we don't need the visual part of the clip, we can release it
         # self.clip.visual = None
         # self.clip.train()
         # # freeze vision if you like:
         # for p in self.clip.visual.parameters():
         #     p.requires_grad_(False)
         # # not in eval mode
-        self.clip.eval() # don't finetune clip
+        self.clip.eval()  # don't finetune clip
         for p in self.clip.parameters():
             p.requires_grad_(False)
 
@@ -94,7 +95,7 @@ class VideoSimVP(pl.LightningModule):
         # this is a list, we need clip to turns it into tensor
         # ing_step:66 - label: ['This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 900.0 sccm, NH3_flow: 750.0 sccm, N2O_flow: 750.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 450.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 100.0 W, temperature: 775.0 K, voltage: 10.0 V.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 260.0 W, temperature: 600.0 K, voltage: 20.0 V.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 450.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 150.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1500.0 sccm, N2_flow: 2380.0 sccm.']
         labels_features = self.encode_labels(labels)
-        
+
         # from loguru import logger
         # logger.debug(f"labels_features shape: {labels_features.shape}")
         # labels_features shape: torch.Size([8, 512])
@@ -185,7 +186,7 @@ class VideoSimVP(pl.LightningModule):
 
             # Calculate distances using squared Euclidean distance
             distances = (
-                (predicted_flat ** 2).sum(dim=1, keepdim=True)
+                (predicted_flat**2).sum(dim=1, keepdim=True)
                 - 2 * predicted_flat @ codebook.t()
                 + (codebook.t() ** 2).sum(dim=0, keepdim=True)
             )
@@ -219,8 +220,9 @@ class VideoSimVP(pl.LightningModule):
             default="kinetics_stride4x4x4",
             help="path to vqvae ckpt, or model name to download pretrained",
         )
-        parser.add_argument("--clip", type=str, required=True, 
-                            help="path to openai clip model")
+        parser.add_argument(
+            "--clip", type=str, required=True, help="path to openai clip model"
+        )
 
         parser.add_argument("--n_cond_frames", type=int, default=1)
         parser.add_argument(

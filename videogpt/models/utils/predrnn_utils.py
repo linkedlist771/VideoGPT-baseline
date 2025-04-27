@@ -34,14 +34,14 @@ def reserve_schedule_sampling_exp(itr, batch_size, args):
         (
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         )
     )
     zeros = np.zeros(
         (
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         )
     )
 
@@ -67,7 +67,7 @@ def reserve_schedule_sampling_exp(itr, batch_size, args):
             args.total_length - 2,
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         ),
     )
     return torch.FloatTensor(real_input_flag).to(args.device)
@@ -81,7 +81,7 @@ def schedule_sampling(eta, itr, batch_size, args):
             args.aft_seq_length - 1,
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         )
     )
     if not args.scheduled_sampling:
@@ -97,14 +97,14 @@ def schedule_sampling(eta, itr, batch_size, args):
         (
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         )
     )
     zeros = np.zeros(
         (
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         )
     )
     real_input_flag = []
@@ -122,7 +122,7 @@ def schedule_sampling(eta, itr, batch_size, args):
             args.aft_seq_length - 1,
             img_height // args.patch_size,
             img_width // args.patch_size,
-            args.patch_size ** 2 * img_channel,
+            args.patch_size**2 * img_channel,
         ),
     )
     return eta, torch.FloatTensor(real_input_flag).to(args.device)

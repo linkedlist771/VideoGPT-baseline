@@ -1,10 +1,12 @@
 import glob
+import json
 import math
 import os
 import os.path as osp
 import pickle
 import random
 import warnings
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -15,13 +17,13 @@ import torch.nn.functional as F
 import torch.utils.data as data
 from loguru import logger
 from torchvision.datasets.video_utils import VideoClips
-from pathlib import Path
-import json
+
 current_dir = Path(__file__).parent
 ROOT = current_dir.parent
 resources_dir = ROOT / "resources"
 labels_json = resources_dir / "labels.json"
 label_maps = json.load(open(labels_json))
+
 
 class VideoDataset(data.Dataset):
     """Generic dataset for videos files stored in folders
@@ -90,10 +92,12 @@ class VideoDataset(data.Dataset):
 def get_parent_dir(path):
     return osp.basename(osp.dirname(path))
 
+
 def get_video_file_name(path):
     # 获取视频文件名 such as /data/sub.mp4 => sub
     filename = osp.basename(path)
     return osp.splitext(filename)[0]
+
 
 def preprocess(video, resolution, sequence_length=None):
     # video: THWC, {0, ..., 255}

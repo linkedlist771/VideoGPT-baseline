@@ -392,17 +392,17 @@ class DownSample(nn.Module):
         for i_layer in range(self.num_layers):
             downsample = PatchMerging(
                 input_resolution=(
-                    patches_resolution[0] // (2 ** i_layer),
-                    patches_resolution[1] // (2 ** i_layer),
+                    patches_resolution[0] // (2**i_layer),
+                    patches_resolution[1] // (2**i_layer),
                 ),
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 2**i_layer),
             )
 
             layer = SwinLSTMCell(
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 2**i_layer),
                 input_resolution=(
-                    patches_resolution[0] // (2 ** i_layer),
-                    patches_resolution[1] // (2 ** i_layer),
+                    patches_resolution[0] // (2**i_layer),
+                    patches_resolution[1] // (2**i_layer),
                 ),
                 depth=depths_downsample[i_layer],
                 num_heads=num_heads[i_layer],

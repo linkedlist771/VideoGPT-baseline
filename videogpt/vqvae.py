@@ -263,7 +263,7 @@ class Codebook(nn.Module):
             )
 
         distances = (
-            (flat_inputs ** 2).sum(dim=1, keepdim=True)
+            (flat_inputs**2).sum(dim=1, keepdim=True)
             - 2 * flat_inputs @ codebook.t()
             + (codebook.t() ** 2).sum(dim=0, keepdim=True)
         )

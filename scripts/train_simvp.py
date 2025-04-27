@@ -36,8 +36,9 @@ def main():
         default="kinetics_stride4x4x4",
         help="path to vqvae ckpt, or model name to download pretrained",
     )
-    parser.add_argument("--clip", type=str, required=True, 
-                        help="path to openai clip model")
+    parser.add_argument(
+        "--clip", type=str, required=True, help="path to openai clip model"
+    )
     parser.add_argument("--n_cond_frames", type=int, default=1)
     parser.add_argument(
         "--n_pred_frames",

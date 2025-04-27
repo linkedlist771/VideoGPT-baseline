@@ -40,7 +40,6 @@ nohup python scripts/train_videogpt.py \
     --gpus 1 \
     --gradient_clip_val 1 \
     --batch_size 2 \
-    --num_workers 2 \
     --amp_level O1 \
     --precision 16 \
     --resolution 128 \

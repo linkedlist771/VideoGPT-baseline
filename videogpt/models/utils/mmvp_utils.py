@@ -17,7 +17,11 @@ def build_similarity_matrix(emb_feats, thre=-1, sigmoid=False, k=-1, cut_off=Fal
         torch.norm(emb_feats, dim=-1, keepdim=True) + 1e-6
     )  #  (B,T,h,w,c)
     prev_frame = normalize_feats[:, : T - 1].reshape(-1, h * w, c)  # (B*(T-1),h*w,c)
-    next_frame = normalize_feats[:, 1:].reshape(-1, h * w, c,)  # (B*(T-1),h*w,c)
+    next_frame = normalize_feats[:, 1:].reshape(
+        -1,
+        h * w,
+        c,
+    )  # (B*(T-1),h*w,c)
     similarity_matrix = torch.bmm(prev_frame, next_frame.permute(0, 2, 1)).reshape(
         B, T - 1, h * w, h * w
     )  # (N*(T-1)*h*w)

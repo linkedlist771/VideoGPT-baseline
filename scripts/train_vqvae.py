@@ -94,7 +94,9 @@ def main():
 
     if args.gpus > 1:
         trainer_kwargs.update(
-            {"strategy": "ddp",}
+            {
+                "strategy": "ddp",
+            }
         )
 
     trainer = pl.Trainer(**trainer_kwargs)

@@ -16,7 +16,6 @@ from .predrnn_utils import (reserve_schedule_sampling_exp, reshape_patch,
 #                         show_heatmap_on_image, show_taxibj, show_weather_bench)
 
 
-
 __all__ = [
     "Config",
     "create_parser",
