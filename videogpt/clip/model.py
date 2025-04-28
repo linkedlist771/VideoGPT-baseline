@@ -360,7 +360,7 @@ class CLIP(nn.Module):
 
         self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
-
+        # self._dtype = self.visual.conv1.weight.dtype
         self.initialize_parameters()
 
     def initialize_parameters(self):
@@ -409,6 +409,7 @@ class CLIP(nn.Module):
 
     @property
     def dtype(self):
+        # return self._dtype
         return self.visual.conv1.weight.dtype
 
     def encode_image(self, image):

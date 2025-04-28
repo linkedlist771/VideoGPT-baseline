@@ -62,6 +62,11 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--drop_path", type=float, default=0.1)
 
+    # Clip attention projector params
+    parser.add_argument("--output_channels", type=int, required=True)
+    parser.add_argument("--output_h", type=int, required=True)
+    parser.add_argument("--output_w", type=int, required=True)
+
     # Add save directory argument
     parser.add_argument(
         "--save_dir",

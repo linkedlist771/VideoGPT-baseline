@@ -290,6 +290,6 @@ if __name__ == "__main__":
     logger.debug(
         f"labels_features.shape: {labels_features.shape}"
     )  # labels_features.shape: torch.Size([8, 512])
-    net = AttentionProjector(output_channels=64, output_h=8, output_w=8)
+    net = AttentionProjector(output_channels=64, output_h=8, output_w=8) #  out.shape:torch.Size([8, 2, 64, 8, 8])
     out = net(labels_features)
     logger.debug(f"out.shape:{out.shape}")  # ut.shape:torch.Size([8, 2, 10, 96, 128])

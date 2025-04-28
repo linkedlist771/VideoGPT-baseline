@@ -13,6 +13,7 @@ from tqdm import tqdm
 # import .clip as clip
 from .clip import clip
 from .models.simvp_model import SimVP_Model
+from .projector import AttentionProjector
 from .resnet import resnet34
 from .utils import shift_dim
 
@@ -25,7 +26,6 @@ class VideoSimVP(pl.LightningModule):
         # Load VQ-VAE and set all parameters to no grad
         from .download import load_vqvae
         from .vqvae import VQVAE
-
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:
@@ -62,13 +62,21 @@ class VideoSimVP(pl.LightningModule):
         self.frame_cond_cache = None
         self.labels_features_cache = None
 
+        #     net = AttentionProjector(output_channels=64, output_h=8, output_w=8) #  out.shape:torch.Size([8, 2, 64, 8, 8])
+        self.attention_projector = AttentionProjector(
+            output_seq_size=args.n_down_sample_cond_frames,
+            output_channels=args.output_channels,
+            output_h=args.output_h,
+            output_w=args.output_w,
+        )
+
         self.save_hyperparameters()
 
     def encode_labels(self, labels: list[str]):
         text_tokens = clip.tokenize(labels).to("cuda")
 
         # now just run:
-        # with torch.no_grad():   # if you’re only doing inference
+        # with torch.no_grad():   # if you're only doing inference
         text_features = self.clip.encode_text(text_tokens)
         return text_features
 
@@ -86,6 +94,8 @@ class VideoSimVP(pl.LightningModule):
         self.clip.eval()  # don't finetune clip
         for p in self.clip.parameters():
             p.requires_grad_(False)
+        # off set visual part, we don't need it
+        # self.clip.visual = None
 
     def training_step(self, batch, batch_idx):
         self.vqvae.eval()
@@ -95,7 +105,13 @@ class VideoSimVP(pl.LightningModule):
         # this is a list, we need clip to turns it into tensor
         # ing_step:66 - label: ['This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 900.0 sccm, NH3_flow: 750.0 sccm, N2O_flow: 750.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 450.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 100.0 W, temperature: 775.0 K, voltage: 10.0 V.', 'This is an etching process, with parameters: pressure: 120.0 MTorr, power: 260.0 W, temperature: 600.0 K, voltage: 20.0 V.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 450.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 150.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 2000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1000.0 sccm, N2_flow: 2380.0 sccm.', 'This is an deposition process, with parameters: deposition_time: 160.0 s, pressure: 1200.0 mTorr, power: 1200.0 W, space: 850.0 mil, SiH4_flow: 360.0 sccm, NH3_flow: 300.0 sccm, N2O_flow: 300.0 sccm, H2_flow: 1500.0 sccm, N2_flow: 2380.0 sccm.']
         labels_features = self.encode_labels(labels)
-
+        # from loguru import logger
+        # logger.debug(f"labels_features shape: {labels_features.shape}")
+        # logger.debug(f"labels features dtype: {labels_features.dtype}")
+        # logger.debug(f"initial_projection dtype: {self.attention_projector.initial_projection.weight.dtype}")
+        # Convert labels_features to float32 before passing to attention projector
+        labels_features = labels_features.to(torch.float32)
+        clip_cond = self.attention_projector(labels_features)
         # from loguru import logger
         # logger.debug(f"labels_features shape: {labels_features.shape}")
         # labels_features shape: torch.Size([8, 512])
@@ -120,7 +136,7 @@ class VideoSimVP(pl.LightningModule):
             )
             embedding_y = shift_dim(embedding_y, 1, -1)
 
-        predicted_y = self.forward(embedding_x)
+        predicted_y = self.forward(embedding_x, clip_cond=clip_cond)
         predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
         # from loguru import logger
         # logger.debug(f"predicted_y shape\n{predicted_y.shape}")
@@ -136,7 +152,7 @@ class VideoSimVP(pl.LightningModule):
 
     # for the forward, it takes in the self.args.n_cond_frames frames and predcited the
     # same size of the output.
-    def forward(self, x):
+    def forward(self, x, clip_cond=None):
         # torch.Size([2, 2, 32, 32, 256])
         # batch size, downsample sequence length,  downsample height, downsample width, embedding dim
         # but we can treat it as
@@ -152,7 +168,8 @@ class VideoSimVP(pl.LightningModule):
 
         # 假设你的张量名为 x
         x = x.permute(0, 1, 4, 2, 3)
-        simvp_out = self.simvp(x)
+        # clip_cond
+        simvp_out = self.simvp(x, clip_cond=clip_cond)
         return simvp_out
 
     def validation_step(self, batch, batch_idx):
@@ -248,5 +265,11 @@ class VideoSimVP(pl.LightningModule):
         parser.add_argument("--mlp_ratio", type=float, default=8.0)
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--drop_path", type=float, default=0.1)
+
+        # Clip attention projector params
+        #     net = AttentionProjector(output_channels=64, output_h=8, output_w=8) #  out.shape:torch.Size([8, 2, 64, 8, 8])
+        parser.add_argument("--output_channels", type=int, required=True)
+        parser.add_argument("--output_h", type=int, required=True)
+        parser.add_argument("--output_w", type=int, required=True)
 
         return parser
