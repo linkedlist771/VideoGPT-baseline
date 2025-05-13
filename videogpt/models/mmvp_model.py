@@ -4,8 +4,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from .modules import RRDB, PredictModel, ResBlock, Up
-from .utils import (build_similarity_matrix, cum_multiply,
-                    sim_matrix_interpolate, sim_matrix_postprocess)
+from .utils import (
+    build_similarity_matrix,
+    cum_multiply,
+    sim_matrix_interpolate,
+    sim_matrix_postprocess,
+)
 
 
 class MMVP_Model(nn.Module):

@@ -26,6 +26,7 @@ class VideoSimVP(pl.LightningModule):
         # Load VQ-VAE and set all parameters to no grad
         from .download import load_vqvae
         from .vqvae import VQVAE
+
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:

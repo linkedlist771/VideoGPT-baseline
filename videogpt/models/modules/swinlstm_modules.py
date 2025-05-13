@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
 from timm.layers import to_2tuple
-from timm.models.swin_transformer import (PatchEmbed, PatchMerging,
-                                          SwinTransformerBlock,
-                                          window_partition, window_reverse)
+from timm.models.swin_transformer import (
+    PatchEmbed,
+    PatchMerging,
+    SwinTransformerBlock,
+    window_partition,
+    window_reverse,
+)
 
 
 class SwinLSTMCell(nn.Module):

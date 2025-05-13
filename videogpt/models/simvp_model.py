@@ -1,11 +1,22 @@
 import torch
 from torch import nn
 
-from .modules import (ConvMixerSubBlock, ConvNeXtSubBlock, ConvSC, GASubBlock,
-                      HorNetSubBlock, MLPMixerSubBlock, MogaSubBlock,
-                      PoolFormerSubBlock, SwinSubBlock, TAUSubBlock,
-                      UniformerSubBlock, VANSubBlock, ViTSubBlock,
-                      gInception_ST)
+from .modules import (
+    ConvMixerSubBlock,
+    ConvNeXtSubBlock,
+    ConvSC,
+    GASubBlock,
+    HorNetSubBlock,
+    MLPMixerSubBlock,
+    MogaSubBlock,
+    PoolFormerSubBlock,
+    SwinSubBlock,
+    TAUSubBlock,
+    UniformerSubBlock,
+    VANSubBlock,
+    ViTSubBlock,
+    gInception_ST,
+)
 
 
 class SimVP_Model(nn.Module):
@@ -56,9 +67,9 @@ class SimVP_Model(nn.Module):
                 drop=drop,
                 drop_path=drop_path,
             )
-            
+
         # Initialize zero convolution layer for CLIP condition
-        # channel size 
+        # channel size
         self.zero_conv = nn.Conv2d(hid_S, hid_S, kernel_size=1, padding=0, bias=True)
         nn.init.zeros_(self.zero_conv.weight)
         nn.init.zeros_(self.zero_conv.bias)
@@ -72,7 +83,7 @@ class SimVP_Model(nn.Module):
 
         z = embed.view(B, T, C_, H_, W_)
         hid = self.hid(z)
-        # weather it has the clip condtion  
+        # weather it has the clip condtion
         clip_cond = kwargs.get("clip_cond", None)
         if clip_cond is not None:
             # Apply zero convolution to CLIP condition time-sequentially
@@ -83,7 +94,7 @@ class SimVP_Model(nn.Module):
             clip_cond_z = clip_cond_z.reshape(B_clip, T_clip, C_clip, H_clip, W_clip)
             # Merge features using elementwise addition
             hid = hid + clip_cond_z
-            
+
         hid = hid.reshape(B * T, C_, H_, W_)  # 10 x64x*93x126
 
         Y = self.dec(hid, skip)  # ship: 10x64x369x501
