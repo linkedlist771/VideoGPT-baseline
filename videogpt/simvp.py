@@ -26,6 +26,7 @@ class VideoSimVP(pl.LightningModule):
         # Load VQ-VAE and set all parameters to no grad
         from .download import load_vqvae
         from .vqvae import VQVAE
+
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:
@@ -176,21 +177,67 @@ class VideoSimVP(pl.LightningModule):
         loss = self.training_step(batch, batch_idx)
         self.log("val/loss", loss, prog_bar=True)
 
-    def sample(self, n, batch=None):
-        """Generate new video samples."""
-
+    def long_seq_sample(self, n: int, batch=None):
         # We need a batch of conditioning frames
         assert batch is not None, "Batch must be provided for conditioning"
         x = batch["video"]
         labels = batch["label"]
-        
         # Encode text labels for conditioning
         labels_features = self.encode_labels(labels)
         labels_features = labels_features.to(torch.float32)
         clip_cond = self.attention_projector(labels_features)
-        
         batch_x = x[:, :, : self.args.n_cond_frames, :, :]
-        batch_y = x[:, :, self.args.n_cond_frames :, :, :]
+
+        # 把frames 添加进去就行了
+        outputs = [batch_x]
+
+        all_frames_number = self.args.n_cond_frames
+        while all_frames_number < n:
+            with torch.no_grad():
+                encoding_x, embedding_x = self.vqvae.encode(
+                    batch_x, include_embeddings=True
+                )
+                embedding_x = shift_dim(embedding_x, 1, -1)
+                predicted_y = self.forward(embedding_x, clip_cond=clip_cond)
+                predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
+                B, T, H, W, C = predicted_y.shape
+                predicted_flat = predicted_y.reshape(-1, C)
+                # Get the codebook
+                codebook = self.vqvae.codebook.embeddings
+                # Calculate distances using squared Euclidean distance
+                distances = (
+                    (predicted_flat**2).sum(dim=1, keepdim=True)
+                    - 2 * predicted_flat @ codebook.t()
+                    + (codebook.t() ** 2).sum(dim=0, keepdim=True)
+                )
+                # Find nearest codebook entries
+                encoding_indices = torch.argmin(distances, dim=1)
+                # Reshape encoding indices back to expected format for decode
+                encoding_indices = encoding_indices.view(B, T, H, W)
+                # Decode requires indices in format expected by VQVAE
+
+                # batch_x 重新
+
+                samples = self.vqvae.decode(encoding_indices)
+                samples = torch.clamp(samples, -0.5, 0.5) + 0.5
+                batch_x = samples  # 这样就行了。
+                all_frames_number += self.args.n_pred_frames
+                outputs.append(samples)
+
+        return outputs  # BCTHW in [0, 1]
+
+    def sample(self, n, batch=None):
+        """Generate new video samples."""
+        # We need a batch of conditioning frames
+        assert batch is not None, "Batch must be provided for conditioning"
+        x = batch["video"]
+        labels = batch["label"]
+        # Encode text labels for conditioning
+        labels_features = self.encode_labels(labels)
+        labels_features = labels_features.to(torch.float32)
+        clip_cond = self.attention_projector(labels_features)
+        batch_x = x[:, :, : self.args.n_cond_frames, :, :]
+        # batch_y = x[:, :, self.args.n_cond_frames :, :, :]
         with torch.no_grad():
             encoding_x, embedding_x = self.vqvae.encode(
                 batch_x, include_embeddings=True
@@ -200,27 +247,21 @@ class VideoSimVP(pl.LightningModule):
             predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
             # here you should calculate the distance from the predicted_y in the
             # codebook and retrieved
-
             # Flatten predicted_y for distance calculation with codebook
             B, T, H, W, C = predicted_y.shape
             predicted_flat = predicted_y.reshape(-1, C)
-
             # Get the codebook
             codebook = self.vqvae.codebook.embeddings
-
             # Calculate distances using squared Euclidean distance
             distances = (
                 (predicted_flat**2).sum(dim=1, keepdim=True)
                 - 2 * predicted_flat @ codebook.t()
                 + (codebook.t() ** 2).sum(dim=0, keepdim=True)
             )
-
             # Find nearest codebook entries
             encoding_indices = torch.argmin(distances, dim=1)
-
             # Reshape encoding indices back to expected format for decode
             encoding_indices = encoding_indices.view(B, T, H, W)
-
             # Decode requires indices in format expected by VQVAE
             samples = self.vqvae.decode(encoding_indices)
             samples = torch.clamp(samples, -0.5, 0.5) + 0.5

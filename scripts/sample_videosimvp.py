@@ -41,7 +41,7 @@ for idx, batch in enumerate(tqdm(loader)):
     # batch = {k: v.cuda() for k, v in batch.items()}
     batch = {
         "video": batch["video"].cuda(),
-        "label": batch["label"] # label this is list[str]
+        "label": batch["label"],  # label this is list[str]
     }
     real_videos = batch["video"]
     real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
