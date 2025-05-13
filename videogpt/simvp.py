@@ -26,7 +26,6 @@ class VideoSimVP(pl.LightningModule):
         # Load VQ-VAE and set all parameters to no grad
         from .download import load_vqvae
         from .vqvae import VQVAE
-
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:
@@ -183,6 +182,13 @@ class VideoSimVP(pl.LightningModule):
         # We need a batch of conditioning frames
         assert batch is not None, "Batch must be provided for conditioning"
         x = batch["video"]
+        labels = batch["label"]
+        
+        # Encode text labels for conditioning
+        labels_features = self.encode_labels(labels)
+        labels_features = labels_features.to(torch.float32)
+        clip_cond = self.attention_projector(labels_features)
+        
         batch_x = x[:, :, : self.args.n_cond_frames, :, :]
         batch_y = x[:, :, self.args.n_cond_frames :, :, :]
         with torch.no_grad():
@@ -190,7 +196,7 @@ class VideoSimVP(pl.LightningModule):
                 batch_x, include_embeddings=True
             )
             embedding_x = shift_dim(embedding_x, 1, -1)
-            predicted_y = self.forward(embedding_x)
+            predicted_y = self.forward(embedding_x, clip_cond=clip_cond)
             predicted_y = predicted_y.permute(0, 1, 3, 4, 2)
             # here you should calculate the distance from the predicted_y in the
             # codebook and retrieved
