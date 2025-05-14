@@ -58,17 +58,7 @@ for idx, batch in enumerate(tqdm(loader)):
         # 保存真实视频的帧
         for i in range(real_videos.size(0)):  # 遍历批次大小
             for t in range(real_videos.size(2)):  # 遍历时间维度
-                # frame = real_videos[i, :, t, :, :]
-                # frame_pil = Image.fromarray(
-                #     (frame.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
-                # )
-                # frame_pil.save(real_batch_dir / f"video_{i}_frame_{t:03d}.png")
-                # from loguru import logger
-                # logger.info(f"real_videos.size(2): {real_videos.size(2)}")
-                # logger.info(f"t: {t}")
                 skip = real_videos.size(2) // 2
-                # logger.info(f"skip: {skip}")
-                # logger.info(f"t >= skip: {t >= skip}")
                 if t >= skip:
                     frame = real_videos[i, :, t, :, :]
                     frame_pil = Image.fromarray(
