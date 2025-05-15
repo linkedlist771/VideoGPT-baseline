@@ -186,13 +186,33 @@ class VideoSimVP(pl.LightningModule):
         labels_features = self.encode_labels(labels)
         labels_features = labels_features.to(torch.float32)
         clip_cond = self.attention_projector(labels_features)
+        # batchsize maybe not 2
+        # x shape: (8, 384, 512, 3)     ==> x shape: (8, 128, 128, 3)
+
+        if len(x.shape) == 4:
+            x = x.unsqueeze(0)
+            # x shape: torch.Size([1, 8, 128, 128,3 ])
+        x = x.permute(0, 4, 1, 2, 3)
+
+        # move channel from last to the second
+        # ([1, 8, 128, 128,3 ]) => ([1, 3, 8, 128, 128])
+
+        # torch.Size([2, 3, 8, 128, 128])
+        # change the shape.
+        
+        from loguru import logger
+        logger.debug(f"x shape: {x.shape}")
+        # ([1, 3, 8, 128, 128])
+
         batch_x = x[:, :, : self.args.n_cond_frames, :, :]
 
         # 把frames 添加进去就行了
-        outputs = [batch_x]
+        outputs = []
 
         all_frames_number = self.args.n_cond_frames
-        while all_frames_number < n:
+        while all_frames_number <= n:
+            logger.debug(f"all_frames_number: {all_frames_number}, n: {n}")
+
             with torch.no_grad():
                 encoding_x, embedding_x = self.vqvae.encode(
                     batch_x, include_embeddings=True
@@ -217,11 +237,16 @@ class VideoSimVP(pl.LightningModule):
                 # Decode requires indices in format expected by VQVAE
 
                 # batch_x 重新
-
+                # samples shape: torch.Size([1, 3, 8, 128, 128])
                 samples = self.vqvae.decode(encoding_indices)
-                samples = torch.clamp(samples, -0.5, 0.5) + 0.5
                 batch_x = samples  # 这样就行了。
+                samples = torch.clamp(samples, -0.5, 0.5) + 0.5
+                #                 frame_pil = Image.fromarray(
+                #                     (frame.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
+                #                 )
+
                 all_frames_number += self.args.n_pred_frames
+                logger.debug(f"samples shape: {samples.shape}")
                 outputs.append(samples)
 
         return outputs  # BCTHW in [0, 1]
