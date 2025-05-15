@@ -7,7 +7,6 @@ from tqdm import tqdm
 import imageio.v3 as iio
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-
 from videogpt import VideoData, VideoSimVP, load_videogpt
 from videogpt.data import label_maps, preprocess
 from videogpt.utils import save_video_grid
@@ -65,7 +64,7 @@ parser.add_argument("--output_dir", type=str, default="infer_output")
 args = parser.parse_args()
 n = args.n
 output_dir = Path(args.output_dir)
-output_dir.mkdir(exist_ok=True)
+output_dir.mkdir(exist_ok=True, parents=True)
 model = VideoSimVP.load_from_checkpoint(args.ckpt)
 model = model.cuda()
 model.eval()
