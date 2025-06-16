@@ -136,6 +136,54 @@ class VideoGPT(pl.LightningModule):
 
         return samples  # BCTHW in [0, 1]
 
+    def long_seq_sample(self, n: int, batch=None):
+        """Generate long sequences by iteratively predicting and using previous predictions as conditioning frames."""
+        from loguru import logger
+        
+        assert batch is not None, "Batch must be provided for conditioning"
+        device = self.fc_in.weight.device
+        
+        # Get prediction parameters
+        n_cond_frames = getattr(self.args, 'n_cond_frames', 1)
+        n_pred_frames = getattr(self.args, 'n_pred_frames', None)
+        if n_pred_frames is None:
+            n_pred_frames = self.shape[0]  # Default to full sequence length
+        
+        logger.debug(f"Long sequence sampling: n_cond_frames={n_cond_frames}, n_pred_frames={n_pred_frames}")
+        
+        # Start with the conditioning frames from the original sample method
+        outputs = []
+        current_batch = batch.copy()
+        
+        total_generated_frames = 0
+        while total_generated_frames < n:
+            logger.debug(f"Generated {total_generated_frames}/{n} frames")
+            
+            # Generate next segment using the standard sample method
+            with torch.no_grad():
+                samples = self.sample(1, current_batch)  # Generate one sample with current conditioning
+                
+                logger.debug(f"Generated segment shape: {samples.shape}")
+                outputs.append(samples)
+                
+                total_generated_frames += samples.shape[2]  # Add number of frames in this sample
+                
+                # Update conditioning frames for next iteration if we need more frames
+                if total_generated_frames < n and self.use_frame_cond:
+                    # Use the last n_cond_frames from the generated sample as conditioning for next iteration
+                    # samples is BCTHW, we need to take the last n_cond_frames in time dimension
+                    if samples.shape[2] >= n_cond_frames:
+                        new_cond_frames = samples[:, :, -n_cond_frames:, :, :]
+                    else:
+                        # If generated samples don't have enough frames, concatenate with previous conditioning
+                        prev_cond = current_batch["video"][:, :, -n_cond_frames+samples.shape[2]:, :, :]
+                        new_cond_frames = torch.cat([prev_cond, samples], dim=2)
+                    
+                    current_batch["video"] = new_cond_frames
+        
+        return outputs  # List of BCTHW tensors in [0, 1]
+
+
     def forward(self, x, targets, cond, decode_step=None, decode_idx=None):
         if self.use_frame_cond:
             if decode_step is None:
@@ -197,6 +245,12 @@ class VideoGPT(pl.LightningModule):
             help="path to vqvae ckpt, or model name to download pretrained",
         )
         parser.add_argument("--n_cond_frames", type=int, default=0)
+        parser.add_argument(
+            "--n_pred_frames",
+            type=int,
+            default=None,
+            help="number of frames to predict in each iteration (default: same as sequence length)",
+        )
         parser.add_argument("--class_cond", action="store_true")
 
         # VideoGPT hyperparmeters
