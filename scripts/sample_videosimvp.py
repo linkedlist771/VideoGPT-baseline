@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-from videogpt import VideoData, VideoSimVP, load_videogpt
+from videogpt import VideoData, VideoSimVP
 from videogpt.utils import save_video_grid
 
 parser = argparse.ArgumentParser()
