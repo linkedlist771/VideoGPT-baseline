@@ -1,6 +1,6 @@
 import os
 
-import gdown
+# import gdown
 import requests
 import torch
 from tqdm import tqdm
@@ -9,15 +9,15 @@ from .gpt import VideoGPT
 from .vqvae import VQVAE
 
 
-def download(id, fname, root=os.path.expanduser("~/.cache/videogpt")):
-    os.makedirs(root, exist_ok=True)
-    destination = os.path.join(root, fname)
+# def download(id, fname, root=os.path.expanduser("~/.cache/videogpt")):
+#     os.makedirs(root, exist_ok=True)
+#     destination = os.path.join(root, fname)
 
-    if os.path.exists(destination):
-        return destination
+#     if os.path.exists(destination):
+#         return destination
 
-    gdown.download(id=id, output=destination, quiet=False)
-    return destination
+#     gdown.download(id=id, output=destination, quiet=False)
+#     return destination
 
 
 _VQVAE = {
