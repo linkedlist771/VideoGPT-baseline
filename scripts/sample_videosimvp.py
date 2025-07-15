@@ -16,8 +16,14 @@ parser.add_argument("--output_dir", type=str, default="infer_output")
 
 # store true
 parser.add_argument("--image", action="store_true")
+parser.add_argument(
+    "--random_cond",
+    action="store_true",
+    help="Use random codebook tensors as conditioning frames",
+)
 args = parser.parse_args()
 use_image = args.image
+use_random_cond = args.random_cond
 
 n = args.n
 output_dir = Path(args.output_dir)
@@ -45,6 +51,19 @@ for idx, batch in enumerate(tqdm(loader)):
     }
     real_videos = batch["video"]
     real_videos = torch.clamp(real_videos, -0.5, 0.5) + 0.5
+
+    if use_random_cond:
+        b = batch["video"].shape[0]
+        latent_shape = gpt.vqvae.latent_shape
+        cond_frames = args.n_down_sample_cond_frames
+        rand_indices = torch.randint(
+            0,
+            gpt.vqvae.codebook.n_codes,
+            (b, cond_frames, latent_shape[1], latent_shape[2]),
+            device="cuda",
+        )
+        random_video = gpt.vqvae.decode(rand_indices)
+        batch["video"] = random_video
     # size...
     samples = gpt.sample(n, batch)  # for simvp it is a littel bit different
     # the batch has both the input and the target, we should only use
